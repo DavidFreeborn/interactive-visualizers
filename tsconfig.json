@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@viz/core-math": ["packages/core-math/src"],
+      "@viz/core-ui": ["packages/core-ui/src"],
+      "@viz/signaling": ["packages/viz-signaling/src"],
+      "@viz/manifold": ["packages/viz-manifold/src"],
+      "@viz/polarization": ["packages/viz-polarization/src"],
+      "@viz/zollman": ["packages/viz-zollman/src"]
+    }
+  },
+  "include": ["packages/*/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
