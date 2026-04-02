@@ -2,13 +2,21 @@
  * Showcase App - Interactive Visualizers Demo
  */
 
-import React, { useState } from 'react';
-import { SignalingGameView } from '@viz/signaling';
+import React, { useEffect, useState } from 'react';
+import {
+  ClassicSignalingGamesApp,
+  CompositionalSignalingGamesApp,
+} from '@viz/signaling';
 import { ManifoldView } from '@viz/manifold';
 import { PolarizationView } from '@viz/polarization';
 import { ZollmanView } from '@viz/zollman';
 
-type VisualizerKey = 'signaling' | 'manifold' | 'polarization' | 'zollman';
+type VisualizerKey =
+  | 'classic-signaling'
+  | 'compositional-signaling'
+  | 'manifold'
+  | 'polarization'
+  | 'zollman';
 
 interface VisualizerInfo {
   key: VisualizerKey;
@@ -17,12 +25,46 @@ interface VisualizerInfo {
   status: string;
 }
 
+function isVisualizerKey(value: string): value is VisualizerKey {
+  return (
+    value === 'classic-signaling' ||
+    value === 'compositional-signaling' ||
+    value === 'manifold' ||
+    value === 'polarization' ||
+    value === 'zollman'
+  );
+}
+
+function parseActiveVisualizerFromHash(hash: string): VisualizerKey | null {
+  const normalized = hash.replace(/^#\/?/, '').trim();
+  return isVisualizerKey(normalized) ? normalized : null;
+}
+
+function setHashForVisualizer(nextVisualizer: VisualizerKey | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (nextVisualizer === null) {
+    window.history.pushState(null, '', `${window.location.pathname}${window.location.search}`);
+    return;
+  }
+
+  window.location.hash = nextVisualizer;
+}
+
 const VISUALIZERS: VisualizerInfo[] = [
   {
-    key: 'signaling',
-    name: 'Signaling Games',
-    description: 'Compositional understanding in Lewis-Skyrms signaling games',
-    status: 'Standard toy model',
+    key: 'classic-signaling',
+    name: 'Classic signaling games',
+    description: 'Ordinary Lewis-Skyrms sender-receiver signaling game',
+    status: 'Phase 1',
+  },
+  {
+    key: 'compositional-signaling',
+    name: 'Compositional signaling games',
+    description: 'Traditional, Minimalist, and Generalist compositional signaling games',
+    status: 'Phase 2',
   },
   {
     key: 'manifold',
@@ -45,7 +87,36 @@ const VISUALIZERS: VisualizerInfo[] = [
 ];
 
 export const App: React.FC = () => {
-  const [activeViz, setActiveViz] = useState<VisualizerKey | null>(null);
+  const [activeViz, setActiveViz] = useState<VisualizerKey | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return parseActiveVisualizerFromHash(window.location.hash);
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const syncFromLocation = () => {
+      setActiveViz(parseActiveVisualizerFromHash(window.location.hash));
+    };
+
+    window.addEventListener('hashchange', syncFromLocation);
+    window.addEventListener('popstate', syncFromLocation);
+
+    return () => {
+      window.removeEventListener('hashchange', syncFromLocation);
+      window.removeEventListener('popstate', syncFromLocation);
+    };
+  }, []);
+
+  function navigateToVisualizer(nextVisualizer: VisualizerKey | null): void {
+    setActiveViz(nextVisualizer);
+    setHashForVisualizer(nextVisualizer);
+  }
 
   if (activeViz === null) {
     return (
@@ -61,7 +132,7 @@ export const App: React.FC = () => {
           {VISUALIZERS.map((viz) => (
             <button
               key={viz.key}
-              onClick={() => setActiveViz(viz.key)}
+              onClick={() => navigateToVisualizer(viz.key)}
               style={styles.card}
             >
               <h2 style={styles.cardTitle}>{viz.name}</h2>
@@ -72,7 +143,7 @@ export const App: React.FC = () => {
         </div>
 
         <footer style={styles.footer}>
-          <p>4 visualizers implemented. Select one above to begin.</p>
+          <p>5 visualizers implemented. Select one above to begin.</p>
         </footer>
       </div>
     );
@@ -81,7 +152,7 @@ export const App: React.FC = () => {
   return (
     <div style={styles.vizContainer}>
       <nav style={styles.nav}>
-        <button onClick={() => setActiveViz(null)} style={styles.backButton}>
+        <button onClick={() => navigateToVisualizer(null)} style={styles.backButton}>
           &larr; Back to Index
         </button>
         <span style={styles.navTitle}>
@@ -90,7 +161,8 @@ export const App: React.FC = () => {
       </nav>
 
       <div style={styles.vizWrapper}>
-        {activeViz === 'signaling' && <SignalingGameView />}
+        {activeViz === 'classic-signaling' && <ClassicSignalingGamesApp />}
+        {activeViz === 'compositional-signaling' && <CompositionalSignalingGamesApp />}
         {activeViz === 'manifold' && <ManifoldView />}
         {activeViz === 'polarization' && <PolarizationView />}
         {activeViz === 'zollman' && <ZollmanView />}
