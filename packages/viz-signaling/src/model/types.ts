@@ -1,121 +1,123 @@
 /**
- * Type definitions for the Signaling Games model.
- *
- * Scientific Status: Standard toy model
- * Based on: CompositionalSignal paper (Freeborn)
+ * Shared types for the baseline single-sender signaling game.
  */
 
-/**
- * Receiver architecture type.
- * MVP: Traditional only
- * Stretch: Minimalist, Generalist
- */
-export type ReceiverType = 'traditional';
+export type Matrix = number[][];
 
 /**
- * Configuration for a signaling game.
+ * User-provided configuration values before defaults are resolved.
+ */
+export interface SignalingGameConfigInput {
+  numStates?: number;
+  numMessages?: number;
+  numActions?: number;
+  prior?: number[];
+  correctActions?: number[];
+  initialReinforcement?: number;
+  seed?: number;
+  rollingWindowSize?: number;
+}
+
+/**
+ * Fully resolved and validated signaling-game configuration.
  */
 export interface SignalingGameConfig {
-  /** Number of states (and acts) - must be a square for 2-sender game */
   numStates: number;
-
-  /** Number of senders (1 or 2) */
-  numSenders: number;
-
-  /** Messages per sender */
-  messagesPerSender: number;
-
-  /** Initial reinforcement value for urns */
+  numMessages: number;
+  numActions: number;
+  prior: number[];
+  correctActions: number[];
   initialReinforcement: number;
-
-  /** Turn at which signal replacement occurs (0 = no replacement) */
-  replacementTurn: number;
-
-  /** Receiver architecture type */
-  receiverType: ReceiverType;
-
-  /** Random seed for reproducibility */
   seed: number;
+  rollingWindowSize: number;
 }
 
 /**
- * Sender's urn: maps state -> message probabilities
- * Structure: senderUrns[senderId][stateId][messageId] = reinforcement count
- */
-export type SenderUrns = number[][][];
-
-/**
- * Traditional receiver's urn: maps message pair -> action probabilities
- * For 2 senders with 2 messages each: 4 pairs, 4 actions
- * Structure: receiverUrns[messagePairIndex][actionId] = reinforcement count
- */
-export type ReceiverUrns = number[][];
-
-/**
- * The current state of a signaling game simulation.
+ * Learned weight state for the baseline signaling game.
  */
 export interface SignalingGameState {
-  /** Current simulation turn */
-  turn: number;
-
-  /** Sender urns */
-  senderUrns: SenderUrns;
-
-  /** Receiver urns (traditional architecture) */
-  receiverUrns: ReceiverUrns;
-
-  /** Whether signal replacement has occurred */
-  replacementOccurred: boolean;
-
-  /** Communication success count */
-  successCount: number;
-
-  /** Total rounds played */
-  totalRounds: number;
-
-  /** History of average information content per turn (sampled) */
-  infoHistory: number[];
-
-  /** History of success rate per turn (sampled) */
-  successHistory: number[];
-
-  /** Turn at which replacement occurred (if any) */
-  replacementAtTurn: number | null;
+  senderWeights: Matrix;
+  receiverWeights: Matrix;
 }
 
 /**
- * Computed metrics for display.
+ * Policies derived by row-normalizing the learned weights.
+ */
+export interface SignalingPolicies {
+  senderPolicy: Matrix;
+  receiverPolicy: Matrix;
+}
+
+/**
+ * Exact details of a single simulated round.
+ */
+export interface SignalingRoundEvent {
+  round: number;
+  stateIndex: number;
+  messageIndex: number;
+  actionIndex: number;
+  reward: 0 | 1;
+  success: boolean;
+}
+
+/**
+ * Greedy diagnostic derived from the current policies.
+ */
+export interface GreedyDiagnostic {
+  senderMessageByState: number[];
+  receiverActionByMessage: number[];
+  composedActionByState: number[];
+  eachStateHasUniqueMessage: boolean;
+  receiverMatchesCorrectAction: boolean;
+}
+
+/**
+ * Approximate equilibrium-regime diagnostic derived from the current policies.
+ */
+export interface EquilibriumDiagnostic {
+  kind: 'signalling-equilibrium' | 'pooling-equilibrium' | 'none';
+  label: string;
+  detail: string;
+}
+
+/**
+ * Exact metrics derived from the current state and simulation history.
  */
 export interface SignalingMetrics {
-  /** Current turn */
-  turn: number;
-
-  /** Average information content in bits */
-  avgInformationContent: number;
-
-  /** Communication success rate [0,1] */
-  successRate: number;
-
-  /** Whether a stable signaling system has emerged */
-  hasSignalingSystem: boolean;
-
-  /** Information lost after replacement (if occurred) */
-  informationLoss: number | null;
+  round: number;
+  seed: number;
+  cumulativeSuccessRate: number;
+  rollingSuccessRate: number;
+  expectedSuccessRate: number;
+  mutualInformationBits: number;
+  maxMutualInformationBits: number;
+  normalizedMutualInformation: number | null;
+  totalSuccesses: number;
+  greedyDiagnostic: GreedyDiagnostic;
+  equilibriumDiagnostic: EquilibriumDiagnostic;
+  stableSignalingSystem: boolean;
 }
 
 /**
- * Result of a single game round.
+ * One point in the simulation history for charts and diagnostics.
  */
-export interface RoundResult {
-  /** State that was sampled */
-  state: number;
+export interface SimulationHistoryPoint {
+  round: number;
+  cumulativeSuccessRate: number;
+  rollingSuccessRate: number;
+  expectedSuccessRate: number;
+  mutualInformationBits: number;
+  normalizedMutualInformation: number | null;
+}
 
-  /** Messages sent by each sender */
-  messages: number[];
-
-  /** Action chosen by receiver */
-  action: number;
-
-  /** Whether communication succeeded (action == state) */
-  success: boolean;
+/**
+ * Immutable snapshot exposed by the simulation runner.
+ */
+export interface SimulationSnapshot {
+  config: SignalingGameConfig;
+  state: SignalingGameState;
+  policies: SignalingPolicies;
+  metrics: SignalingMetrics;
+  history: SimulationHistoryPoint[];
+  lastRoundEvent: SignalingRoundEvent | null;
 }

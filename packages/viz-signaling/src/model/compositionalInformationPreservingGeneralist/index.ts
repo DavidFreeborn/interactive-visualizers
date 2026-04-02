@@ -1,0 +1,15 @@
+export {
+  compositionalInformationPreservingGeneralistModel,
+  createInitialCompositionalInformationPreservingGeneralistState,
+  deriveCompositionalInformationPreservingGeneralistPolicies,
+  playCompositionalInformationPreservingGeneralistRound,
+} from "./compositionalGame";
+export type {
+  CompositionalInformationPreservingGeneralistConfig,
+  CompositionalInformationPreservingGeneralistConfigInput,
+  CompositionalInformationPreservingGeneralistHistoryPoint,
+  CompositionalInformationPreservingGeneralistMetrics,
+  CompositionalInformationPreservingGeneralistPolicies,
+  CompositionalInformationPreservingGeneralistRoundEvent,
+  CompositionalInformationPreservingGeneralistState,
+} from "./types";
