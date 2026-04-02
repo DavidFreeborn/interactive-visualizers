@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? '/interactive-visualizers/' : '/',
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/interactive-visualizers/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -15,4 +15,4 @@ export default defineConfig({
       '@viz/zollman': path.resolve(__dirname, '../../packages/viz-zollman/src'),
     },
   },
-});
+}));
