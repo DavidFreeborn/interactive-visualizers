@@ -1,0 +1,1946 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dynamic Clustering Visualiser</title>
+  <style>
+    :root {
+      --page: #f4f4f1;
+      --panel: #ffffff;
+      --ink: #111111;
+      --muted: #64645f;
+      --faint: #8a8a83;
+      --line: #d9d9d2;
+      --line-strong: #b9b9b0;
+      --soft: #f7f7f4;
+      --accent: #183b4a;
+      --accent-soft: rgba(24, 59, 74, 0.08);
+      --radius: 12px;
+      --sans: Inter, "IBM Plex Sans", "Helvetica Neue", Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.34;
+      text-rendering: geometricPrecision;
+    }
+
+    .cluster-app {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 22px 18px 32px;
+    }
+
+    header {
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.55rem);
+      line-height: 0.98;
+      font-weight: 640;
+      letter-spacing: -0.045em;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 374px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .stage-card,
+    .control-card,
+    .reading-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .stage-card {
+      overflow: hidden;
+      min-height: 718px;
+      display: grid;
+      grid-template-rows: auto auto minmax(590px, 1fr);
+    }
+
+    .stage-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 13px 15px 11px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .stage-label {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stage-label strong {
+      font-size: 0.98rem;
+      font-weight: 680;
+      letter-spacing: -0.015em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stage-label span {
+      color: var(--muted);
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stage-metrics {
+      display: flex;
+      justify-content: flex-end;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    .metric {
+      min-width: 76px;
+      border-left: 1px solid var(--line);
+      padding: 2px 0 2px 11px;
+      text-align: right;
+    }
+
+    .metric b {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.94rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.085em;
+      text-transform: uppercase;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 590px;
+      background: #ffffff;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      min-height: 590px;
+      display: block;
+      background: #ffffff;
+    }
+
+    .transport {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfbfa;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font: inherit;
+      font-size: 0.79rem;
+      font-weight: 720;
+      letter-spacing: 0.055em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 130ms ease, color 130ms ease, border-color 130ms ease, transform 130ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line-strong);
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 245px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 720;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .control-card,
+    .reading-card { padding: 14px; }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 0.72rem;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 760;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 10px;
+    }
+
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 0.70rem;
+      font-weight: 720;
+      letter-spacing: 0.095em;
+      text-transform: uppercase;
+    }
+
+    label output {
+      font-family: var(--mono);
+      color: var(--ink);
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 620;
+    }
+
+    select,
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 9px 9px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    select:focus,
+    input[type="number"]:focus {
+      border-color: #8aa0a8;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-top: 7px;
+    }
+
+    .checkbox-row input { accent-color: var(--accent); }
+
+    .reading-card {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .reading-card h2 {
+      margin: 0;
+      font-size: 1.18rem;
+      letter-spacing: -0.025em;
+      font-weight: 680;
+    }
+
+    .principle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.91rem;
+    }
+
+    .step-box {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+      min-height: 78px;
+    }
+
+    .step-box strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .step-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px 11px;
+      padding-top: 1px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.12);
+      background: #bbb;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1040px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .stage-card { min-height: 640px; }
+      .side-stack { grid-template-columns: 1fr 1fr; align-items: start; }
+      .reading-card { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 720px) {
+      .cluster-app { padding: 16px 10px 24px; }
+      header { display: block; }
+      .stage-topbar { flex-direction: column; align-items: flex-start; }
+      .stage-metrics { justify-content: flex-start; }
+      .side-stack { grid-template-columns: 1fr; }
+      .reading-card { grid-column: auto; }
+      .control-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .transport { align-items: stretch; }
+      .speed-control { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="cluster-app" aria-label="Dynamic clustering visualiser">
+    <header>
+      <h1>Dynamic Clustering Visualiser</h1>
+    </header>
+
+    <section class="main-grid">
+      <article class="stage-card">
+        <div class="stage-topbar">
+          <div class="stage-label">
+            <strong id="stageTitle">k-means on separated Gaussian blobs</strong>
+            <span id="stageSubtitle">Centres move; points repeatedly choose their nearest centre.</span>
+          </div>
+          <div class="stage-metrics" aria-label="Current metrics">
+            <div class="metric"><b id="metricA">0</b><span id="metricALabel">step</span></div>
+            <div class="metric"><b id="metricB">—</b><span id="metricBLabel">score</span></div>
+            <div class="metric"><b id="metricC">—</b><span id="metricCLabel">clusters</span></div>
+          </div>
+        </div>
+
+        <div class="transport">
+          <div class="button-row">
+            <button id="runBtn">Run</button>
+            <button id="stepBtn" class="secondary">Step</button>
+            <button id="resetAlgoBtn" class="secondary">Reset method</button>
+            <button id="newDataBtn" class="secondary" title="Regenerate the same data geometry using the next seed.">New sample</button>
+          </div>
+          <div class="speed-control">
+            <span>Speed</span>
+            <input id="speed" type="range" min="0" max="100" value="56" aria-label="Animation speed" />
+            <span>faster</span>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="stage" aria-label="Animated clustering canvas"></canvas>
+        </div>
+      </article>
+
+      <aside class="side-stack">
+        <section class="control-card">
+          <p class="section-title">Data parameters</p>
+          <div class="control-grid">
+            <div class="field full">
+              <label for="dataset">Data geometry</label>
+              <select id="dataset">
+                <option value="blobs">Separated Gaussian blobs</option>
+                <option value="uniform">Uniform random field</option>
+                <option value="unequal">Unequal cluster sizes</option>
+                <option value="density">Different densities</option>
+                <option value="anisotropic">Anisotropic ellipses</option>
+                <option value="moons">Two moons</option>
+                <option value="rings">Concentric rings</option>
+                <option value="spiral">Interlocking spirals</option>
+                <option value="bridge">Two blobs with a bridge</option>
+                <option value="outliers">Blobs with outliers</option>
+                <option value="bands">Noisy diagonal bands</option>
+                <option value="nested">Nested local clusters</option>
+                <option value="lineblob">Line plus blob</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="nPoints">Points <output id="nPointsOut">240</output></label>
+              <input id="nPoints" type="range" min="50" max="460" value="240" step="10" />
+            </div>
+
+            <div class="field">
+              <label for="noise">Noise <output id="noiseOut">0.04</output></label>
+              <input id="noise" type="range" min="0" max="0.34" value="0.04" step="0.01" />
+            </div>
+
+            <div class="field">
+              <label for="spread">Spread <output id="spreadOut">1.00</output></label>
+              <input id="spread" type="range" min="0.72" max="1.42" value="1" step="0.01" />
+            </div>
+
+            <div class="field">
+              <label for="seed">Seed</label>
+              <input id="seed" type="number" value="42" min="1" max="999999" />
+            </div>
+          </div>
+        </section>
+
+        <section class="control-card">
+          <p class="section-title">Clustering parameters</p>
+          <div class="control-grid">
+            <div class="field full">
+              <label for="method">Method</label>
+              <select id="method">
+                <option value="kmeans">k-means</option>
+                <option value="kmedoids">k-medoids</option>
+                <option value="fuzzy">Fuzzy c-means</option>
+                <option value="gmm">Gaussian mixture</option>
+                <option value="dbscan">DBSCAN</option>
+                <option value="hdbscan">HDBSCAN-style hierarchy</option>
+                <option value="meanshift">Mean shift</option>
+                <option value="agglo">Agglomerative hierarchy</option>
+                <option value="graph">Graph communities</option>
+              </select>
+            </div>
+
+            <div class="field param param-k">
+              <label for="k">Clusters / components <output id="kOut">3</output></label>
+              <input id="k" type="range" min="2" max="8" value="3" step="1" />
+            </div>
+
+            <div class="field param param-fuzzy">
+              <label for="fuzziness">Fuzziness <output id="fuzzinessOut">2.00</output></label>
+              <input id="fuzziness" type="range" min="1.35" max="3.4" value="2" step="0.05" />
+            </div>
+
+            <div class="field param param-dbscan">
+              <label for="eps">eps <output id="epsOut">0.17</output></label>
+              <input id="eps" type="range" min="0.035" max="0.48" value="0.17" step="0.005" />
+            </div>
+
+            <div class="field param param-dbscan param-hdbscan">
+              <label for="minPts">minPts <output id="minPtsOut">5</output></label>
+              <input id="minPts" type="range" min="3" max="18" value="5" step="1" />
+            </div>
+
+            <div class="field param param-hdbscan">
+              <label for="minClusterSize">Min cluster size <output id="minClusterSizeOut">16</output></label>
+              <input id="minClusterSize" type="range" min="5" max="60" value="16" step="1" />
+            </div>
+
+            <div class="field param param-meanshift">
+              <label for="bandwidth">Bandwidth <output id="bandwidthOut">0.23</output></label>
+              <input id="bandwidth" type="range" min="0.06" max="0.58" value="0.23" step="0.01" />
+            </div>
+
+            <div class="field param param-agglo">
+              <label for="linkage">Linkage</label>
+              <select id="linkage">
+                <option value="ward">Ward-like</option>
+                <option value="single">Single</option>
+                <option value="complete">Complete</option>
+                <option value="average">Average</option>
+              </select>
+            </div>
+
+            <div class="field param param-agglo">
+              <label for="targetClusters">Cut clusters <output id="targetClustersOut">3</output></label>
+              <input id="targetClusters" type="range" min="2" max="8" value="3" step="1" />
+            </div>
+
+            <div class="field param param-graph">
+              <label for="neighbors">Graph neighbours <output id="neighborsOut">8</output></label>
+              <input id="neighbors" type="range" min="3" max="22" value="8" step="1" />
+            </div>
+
+            <div class="field full">
+              <div class="checkbox-row">
+                <input id="mechanics" type="checkbox" checked />
+                <span>Show method mechanics</span>
+              </div>
+              <div class="checkbox-row">
+                <input id="softDisplay" type="checkbox" />
+                <span>Show weak membership where available</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="reading-card">
+          <h2 id="methodName">k-means</h2>
+          <p class="principle" id="principle">Choose k centres. Assign each point to its nearest centre. Move each centre to the mean of the points assigned to it. Repeat until stable.</p>
+          <div class="step-box">
+            <strong id="stepLabel">Current step</strong>
+            <p id="stepText">Press Step: each point chooses its nearest centre.</p>
+          </div>
+          <div class="legend" id="legend"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const palette = ['#0072B2', '#D55E00', '#009E73', '#6F4E9B', '#E69F00', '#5B8FA8', '#9A5B64', '#4E6A3D'];
+      const neutral = '#2f302d';
+      const faintInk = 'rgba(17,17,17,0.15)';
+      const faintLine = 'rgba(17,17,17,0.105)';
+
+      const els = {
+        canvas: document.getElementById('stage'),
+        stageTitle: document.getElementById('stageTitle'),
+        stageSubtitle: document.getElementById('stageSubtitle'),
+        metricA: document.getElementById('metricA'),
+        metricB: document.getElementById('metricB'),
+        metricC: document.getElementById('metricC'),
+        metricALabel: document.getElementById('metricALabel'),
+        metricBLabel: document.getElementById('metricBLabel'),
+        metricCLabel: document.getElementById('metricCLabel'),
+        runBtn: document.getElementById('runBtn'),
+        stepBtn: document.getElementById('stepBtn'),
+        resetAlgoBtn: document.getElementById('resetAlgoBtn'),
+        newDataBtn: document.getElementById('newDataBtn'),
+        speed: document.getElementById('speed'),
+        dataset: document.getElementById('dataset'),
+        method: document.getElementById('method'),
+        nPoints: document.getElementById('nPoints'),
+        nPointsOut: document.getElementById('nPointsOut'),
+        noise: document.getElementById('noise'),
+        noiseOut: document.getElementById('noiseOut'),
+        spread: document.getElementById('spread'),
+        spreadOut: document.getElementById('spreadOut'),
+        seed: document.getElementById('seed'),
+        k: document.getElementById('k'),
+        kOut: document.getElementById('kOut'),
+        fuzziness: document.getElementById('fuzziness'),
+        fuzzinessOut: document.getElementById('fuzzinessOut'),
+        eps: document.getElementById('eps'),
+        epsOut: document.getElementById('epsOut'),
+        minPts: document.getElementById('minPts'),
+        minPtsOut: document.getElementById('minPtsOut'),
+        minClusterSize: document.getElementById('minClusterSize'),
+        minClusterSizeOut: document.getElementById('minClusterSizeOut'),
+        bandwidth: document.getElementById('bandwidth'),
+        bandwidthOut: document.getElementById('bandwidthOut'),
+        linkage: document.getElementById('linkage'),
+        targetClusters: document.getElementById('targetClusters'),
+        targetClustersOut: document.getElementById('targetClustersOut'),
+        neighbors: document.getElementById('neighbors'),
+        neighborsOut: document.getElementById('neighborsOut'),
+        mechanics: document.getElementById('mechanics'),
+        softDisplay: document.getElementById('softDisplay'),
+        methodName: document.getElementById('methodName'),
+        principle: document.getElementById('principle'),
+        stepLabel: document.getElementById('stepLabel'),
+        stepText: document.getElementById('stepText'),
+        legend: document.getElementById('legend'),
+      };
+
+      const ctx = els.canvas.getContext('2d');
+      let points = [];
+      let algo = null;
+      let running = false;
+      let lastTick = 0;
+      let view = { xmin: -1.2, xmax: 1.2, ymin: -1.2, ymax: 1.2 };
+
+      function setRunning(value) {
+        running = !!value;
+        els.runBtn.textContent = running ? 'Pause' : 'Run';
+      }
+
+      function rngFactory(seed) {
+        let t = seed >>> 0;
+        return function() {
+          t += 0x6D2B79F5;
+          let r = Math.imul(t ^ (t >>> 15), 1 | t);
+          r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+          return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function randn(rng) {
+        let u = 0, v = 0;
+        while (u === 0) u = rng();
+        while (v === 0) v = rng();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      }
+
+      function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function dist2(a, b) { const dx = a.x - b.x, dy = a.y - b.y; return dx*dx + dy*dy; }
+      function dist(a, b) { return Math.sqrt(dist2(a, b)); }
+      function fmt(x, digits = 2) { return Number.isFinite(x) ? x.toFixed(digits) : '—'; }
+      function uniqueCount(arr) { return new Set(arr).size; }
+      function cssAlpha(hex, a) {
+        const r = parseInt(hex.slice(1,3), 16);
+        const g = parseInt(hex.slice(3,5), 16);
+        const b = parseInt(hex.slice(5,7), 16);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+
+      function params() {
+        return {
+          dataset: els.dataset.value,
+          method: els.method.value,
+          n: parseInt(els.nPoints.value, 10),
+          noise: parseFloat(els.noise.value),
+          spread: parseFloat(els.spread.value),
+          seed: parseInt(els.seed.value, 10) || 42,
+          k: parseInt(els.k.value, 10),
+          fuzziness: parseFloat(els.fuzziness.value),
+          eps: parseFloat(els.eps.value),
+          minPts: parseInt(els.minPts.value, 10),
+          minClusterSize: parseInt(els.minClusterSize.value, 10),
+          bandwidth: parseFloat(els.bandwidth.value),
+          linkage: els.linkage.value,
+          targetClusters: parseInt(els.targetClusters.value, 10),
+          neighbors: parseInt(els.neighbors.value, 10),
+          mechanics: els.mechanics.checked,
+          soft: els.softDisplay.checked
+        };
+      }
+
+      function addNoise(pts, count, rng, s = 1) {
+        for (let i = 0; i < count; i++) pts.push({ x: s*(-1.02 + 2.04*rng()), y: s*(-1.02 + 2.04*rng()), truth: -1 });
+      }
+
+      function gaussianBlob(pts, rng, cx, cy, sx, sy, angle, n, truth) {
+        const ca = Math.cos(angle), sa = Math.sin(angle);
+        for (let i = 0; i < n; i++) {
+          const u = randn(rng) * sx;
+          const v = randn(rng) * sy;
+          pts.push({ x: cx + ca*u - sa*v, y: cy + sa*u + ca*v, truth });
+        }
+      }
+
+      function generateData() {
+        const p = params();
+        const rng = rngFactory(p.seed);
+        const pts = [];
+        const nNoise = Math.round(p.n * p.noise);
+        const nCore = Math.max(10, p.n - nNoise);
+        const s = p.spread;
+
+        if (p.dataset === 'uniform') {
+          for (let i = 0; i < p.n; i++) pts.push({ x: s*(-1 + 2*rng()), y: s*(-1 + 2*rng()), truth: 0 });
+          return pts;
+        }
+
+        if (p.dataset === 'blobs') {
+          const each = Math.floor(nCore / 3);
+          gaussianBlob(pts, rng, -0.64*s, -0.42*s, 0.13*s, 0.12*s, 0, each, 0);
+          gaussianBlob(pts, rng, 0.61*s, -0.36*s, 0.13*s, 0.11*s, 0, each, 1);
+          gaussianBlob(pts, rng, 0.02*s, 0.61*s, 0.14*s, 0.12*s, 0, nCore - 2*each, 2);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'unequal') {
+          const a = Math.floor(nCore * 0.60), b = Math.floor(nCore * 0.25);
+          gaussianBlob(pts, rng, -0.49*s, -0.31*s, 0.18*s, 0.16*s, 0, a, 0);
+          gaussianBlob(pts, rng, 0.66*s, -0.45*s, 0.085*s, 0.075*s, 0, b, 1);
+          gaussianBlob(pts, rng, 0.11*s, 0.62*s, 0.12*s, 0.10*s, 0, nCore-a-b, 2);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'density') {
+          const a = Math.floor(nCore * 0.34), b = Math.floor(nCore * 0.33);
+          gaussianBlob(pts, rng, -0.58*s, -0.32*s, 0.065*s, 0.065*s, 0, a, 0);
+          gaussianBlob(pts, rng, 0.52*s, -0.30*s, 0.23*s, 0.22*s, 0, b, 1);
+          gaussianBlob(pts, rng, 0.0*s, 0.62*s, 0.13*s, 0.13*s, 0, nCore-a-b, 2);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'anisotropic') {
+          const each = Math.floor(nCore / 3);
+          gaussianBlob(pts, rng, -0.54*s, -0.38*s, 0.27*s, 0.052*s, -0.76, each, 0);
+          gaussianBlob(pts, rng, 0.48*s, -0.32*s, 0.29*s, 0.058*s, 0.63, each, 1);
+          gaussianBlob(pts, rng, 0.03*s, 0.58*s, 0.25*s, 0.060*s, 0.08, nCore-2*each, 2);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'moons') {
+          const half = Math.floor(nCore / 2);
+          for (let i = 0; i < half; i++) {
+            const t = Math.PI * rng();
+            pts.push({ x: s*(0.58*Math.cos(t) - 0.27 + 0.045*randn(rng)), y: s*(0.58*Math.sin(t) + 0.05 + 0.045*randn(rng)), truth: 0 });
+          }
+          for (let i = 0; i < nCore-half; i++) {
+            const t = Math.PI * rng();
+            pts.push({ x: s*(0.58*(1 - Math.cos(t)) - 0.27 + 0.045*randn(rng)), y: s*(-0.58*Math.sin(t) - 0.10 + 0.045*randn(rng)), truth: 1 });
+          }
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'rings') {
+          const half = Math.floor(nCore / 2);
+          for (let i = 0; i < half; i++) {
+            const t = 2*Math.PI*rng();
+            const r = s*(0.34 + 0.027*randn(rng));
+            pts.push({ x: r*Math.cos(t), y: r*Math.sin(t), truth: 0 });
+          }
+          for (let i = 0; i < nCore-half; i++) {
+            const t = 2*Math.PI*rng();
+            const r = s*(0.82 + 0.04*randn(rng));
+            pts.push({ x: r*Math.cos(t), y: r*Math.sin(t), truth: 1 });
+          }
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'spiral') {
+          const half = Math.floor(nCore / 2);
+          for (let i = 0; i < half; i++) {
+            const t = 0.55 + 3.85*Math.PI*rng();
+            const r = s*(0.078*t + 0.021*randn(rng));
+            pts.push({ x: r*Math.cos(t) + 0.025*randn(rng), y: r*Math.sin(t) + 0.025*randn(rng), truth: 0 });
+          }
+          for (let i = 0; i < nCore-half; i++) {
+            const t0 = 0.55 + 3.85*Math.PI*rng();
+            const t = t0 + Math.PI;
+            const r = s*(0.078*t0 + 0.021*randn(rng));
+            pts.push({ x: r*Math.cos(t) + 0.025*randn(rng), y: r*Math.sin(t) + 0.025*randn(rng), truth: 1 });
+          }
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'bridge') {
+          const a = Math.floor(nCore * 0.42), b = Math.floor(nCore * 0.42);
+          gaussianBlob(pts, rng, -0.65*s, 0.0, 0.13*s, 0.13*s, 0, a, 0);
+          gaussianBlob(pts, rng, 0.65*s, 0.0, 0.13*s, 0.13*s, 0, b, 1);
+          for (let i = 0; i < nCore-a-b; i++) {
+            const u = -0.48 + 0.96*rng();
+            pts.push({ x: s*(u + 0.020*randn(rng)), y: s*(0.00 + 0.036*randn(rng)), truth: 2 });
+          }
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'outliers') {
+          const each = Math.floor(nCore / 3);
+          gaussianBlob(pts, rng, -0.55*s, -0.43*s, 0.095*s, 0.095*s, 0, each, 0);
+          gaussianBlob(pts, rng, 0.56*s, -0.40*s, 0.095*s, 0.095*s, 0, each, 1);
+          gaussianBlob(pts, rng, 0.01*s, 0.58*s, 0.095*s, 0.095*s, 0, nCore-2*each, 2);
+          addNoise(pts, Math.max(nNoise, Math.round(p.n * 0.16)), rng, s);
+          return pts.slice(0, p.n);
+        }
+
+        if (p.dataset === 'bands') {
+          const bands = 3;
+          for (let i = 0; i < nCore; i++) {
+            const b = i % bands;
+            const x = s*(-0.95 + 1.9*rng());
+            const base = [-0.45, 0.0, 0.45][b];
+            const y = s*(0.48*x + base + 0.045*randn(rng));
+            pts.push({ x, y, truth: b });
+          }
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'nested') {
+          const big = Math.floor(nCore * 0.45);
+          gaussianBlob(pts, rng, -0.52*s, 0.05*s, 0.28*s, 0.25*s, 0, big, 0);
+          const rest = nCore - big;
+          const each = Math.floor(rest / 4);
+          gaussianBlob(pts, rng, 0.38*s, 0.45*s, 0.06*s, 0.055*s, 0, each, 1);
+          gaussianBlob(pts, rng, 0.70*s, 0.22*s, 0.06*s, 0.055*s, 0, each, 2);
+          gaussianBlob(pts, rng, 0.42*s, -0.18*s, 0.06*s, 0.055*s, 0, each, 3);
+          gaussianBlob(pts, rng, 0.74*s, -0.44*s, 0.06*s, 0.055*s, 0, rest - 3*each, 4);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        if (p.dataset === 'lineblob') {
+          const lineN = Math.floor(nCore * 0.55);
+          for (let i = 0; i < lineN; i++) {
+            const x = s*(-0.98 + 1.15*rng());
+            const y = s*(-0.58 + 0.82*(x + 0.98) + 0.045*randn(rng));
+            pts.push({ x, y, truth: 0 });
+          }
+          gaussianBlob(pts, rng, 0.56*s, 0.38*s, 0.16*s, 0.14*s, 0, nCore-lineN, 1);
+          addNoise(pts, nNoise, rng, s);
+          return pts;
+        }
+
+        return pts;
+      }
+
+      class KMeans {
+        constructor(points, k, seed) {
+          this.points = points; this.k = k; this.rng = rngFactory(seed + 17011);
+          this.centres = []; this.prevCentres = [];
+          this.labels = new Array(points.length).fill(-1);
+          this.iteration = 0; this.phase = 'assign'; this.sse = Infinity; this.converged = false;
+          this.message = 'Initialise centres. Then alternate: assign points, move centres, repeat.';
+          this.init();
+        }
+        init() {
+          const used = new Set();
+          while (this.centres.length < this.k && used.size < this.points.length) {
+            const i = Math.floor(this.rng() * this.points.length);
+            if (!used.has(i)) { used.add(i); this.centres.push({ x: this.points[i].x, y: this.points[i].y }); }
+          }
+          while (this.centres.length < this.k) this.centres.push({ x: -1 + 2*this.rng(), y: -1 + 2*this.rng() });
+          this.prevCentres = this.centres.map(c => ({...c}));
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: assignments and centres no longer meaningfully change.'; return; }
+          if (this.phase === 'assign') {
+            let changes = 0, sse = 0;
+            for (let i = 0; i < this.points.length; i++) {
+              let best = 0, bestD = Infinity;
+              for (let j = 0; j < this.k; j++) { const d = dist2(this.points[i], this.centres[j]); if (d < bestD) { bestD = d; best = j; } }
+              if (this.labels[i] !== best) changes++;
+              this.labels[i] = best; sse += bestD;
+            }
+            this.sse = sse; this.phase = 'update';
+            this.message = `Assignment step: each point chooses its nearest centre. ${changes} assignment${changes === 1 ? '' : 's'} changed.`;
+          } else {
+            this.prevCentres = this.centres.map(c => ({...c}));
+            const sums = Array.from({ length: this.k }, () => ({ x: 0, y: 0, n: 0 }));
+            for (let i = 0; i < this.points.length; i++) { const lab = this.labels[i]; if (lab >= 0) { sums[lab].x += this.points[i].x; sums[lab].y += this.points[i].y; sums[lab].n++; } }
+            let movement = 0;
+            for (let j = 0; j < this.k; j++) {
+              if (sums[j].n > 0) {
+                const next = { x: sums[j].x / sums[j].n, y: sums[j].y / sums[j].n };
+                movement += dist(this.centres[j], next); this.centres[j] = next;
+              } else { this.centres[j] = { x: -1 + 2*this.rng(), y: -1 + 2*this.rng() }; movement += 1; }
+            }
+            this.iteration++; this.phase = 'assign'; this.converged = movement < 0.0015;
+            this.message = `Update step: centres move to the mean of their assigned points. Total movement: ${fmt(movement, 3)}.`;
+          }
+        }
+        metrics() { return { a: this.iteration, b: fmt(this.sse, 2), c: uniqueCount(this.labels.filter(x => x >= 0)) }; }
+      }
+
+      class KMedoids {
+        constructor(points, k, seed) {
+          this.points = points; this.k = k; this.rng = rngFactory(seed + 3037);
+          this.medoids = []; this.prevMedoids = [];
+          this.labels = new Array(points.length).fill(-1);
+          this.iteration = 0; this.phase = 'assign'; this.cost = Infinity; this.converged = false;
+          this.message = 'Initialise medoids. Unlike k-means, centres must be actual observed points.';
+          this.init();
+        }
+        init() {
+          const used = new Set();
+          while (this.medoids.length < this.k && used.size < this.points.length) {
+            const i = Math.floor(this.rng() * this.points.length);
+            if (!used.has(i)) { used.add(i); this.medoids.push(i); }
+          }
+          this.prevMedoids = this.medoids.slice();
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: the representative observed points no longer change.'; return; }
+          if (this.phase === 'assign') {
+            let cost = 0, changes = 0;
+            for (let i = 0; i < this.points.length; i++) {
+              let best = 0, bestD = Infinity;
+              for (let j = 0; j < this.medoids.length; j++) { const d = dist(this.points[i], this.points[this.medoids[j]]); if (d < bestD) { bestD = d; best = j; } }
+              if (this.labels[i] !== best) changes++;
+              this.labels[i] = best; cost += bestD;
+            }
+            this.cost = cost; this.phase = 'update';
+            this.message = `Assignment step: each point attaches to its nearest medoid. ${changes} assignment${changes === 1 ? '' : 's'} changed.`;
+          } else {
+            this.prevMedoids = this.medoids.slice();
+            let swaps = 0;
+            for (let j = 0; j < this.k; j++) {
+              const members = [];
+              for (let i = 0; i < this.points.length; i++) if (this.labels[i] === j) members.push(i);
+              if (members.length === 0) continue;
+              let bestIdx = this.medoids[j], bestCost = Infinity;
+              for (const cand of members) {
+                let c = 0;
+                for (const i of members) c += dist(this.points[i], this.points[cand]);
+                if (c < bestCost) { bestCost = c; bestIdx = cand; }
+              }
+              if (bestIdx !== this.medoids[j]) swaps++;
+              this.medoids[j] = bestIdx;
+            }
+            this.iteration++; this.phase = 'assign'; this.converged = swaps === 0;
+            this.message = `Update step: each cluster chooses its most central actual data point as medoid. ${swaps} medoid${swaps === 1 ? '' : 's'} changed.`;
+          }
+        }
+        centres() { return this.medoids.map(i => this.points[i]); }
+        prevCentres() { return this.prevMedoids.map(i => this.points[i]); }
+        metrics() { return { a: this.iteration, b: fmt(this.cost, 2), c: uniqueCount(this.labels.filter(x => x >= 0)) }; }
+      }
+
+      class FuzzyCMeans {
+        constructor(points, k, m, seed) {
+          this.points = points; this.k = k; this.m = m; this.rng = rngFactory(seed + 51511);
+          this.centres = []; this.prevCentres = [];
+          this.U = Array.from({ length: points.length }, () => Array(k).fill(1/k));
+          this.labels = new Array(points.length).fill(-1); this.conf = new Array(points.length).fill(1/k);
+          this.iteration = 0; this.phase = 'membership'; this.objective = Infinity; this.converged = false;
+          this.message = 'Initialise centres. Points have partial membership rather than crisp ownership.';
+          this.init();
+        }
+        init() {
+          const used = new Set();
+          while (this.centres.length < this.k && used.size < this.points.length) {
+            const i = Math.floor(this.rng() * this.points.length);
+            if (!used.has(i)) { used.add(i); this.centres.push({ x: this.points[i].x, y: this.points[i].y }); }
+          }
+          while (this.centres.length < this.k) this.centres.push({ x: -1 + 2*this.rng(), y: -1 + 2*this.rng() });
+          this.prevCentres = this.centres.map(c => ({...c}));
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: memberships and centres have stabilised.'; return; }
+          if (this.phase === 'membership') {
+            const power = 1 / Math.max(0.05, this.m - 1);
+            let obj = 0;
+            for (let i = 0; i < this.points.length; i++) {
+              const ds = this.centres.map(c => Math.max(1e-8, dist2(this.points[i], c)));
+              for (let j = 0; j < this.k; j++) {
+                let denom = 0;
+                for (let l = 0; l < this.k; l++) denom += Math.pow(ds[j] / ds[l], power);
+                this.U[i][j] = 1 / Math.max(1e-12, denom);
+              }
+              let best = 0, bestU = -1;
+              for (let j = 0; j < this.k; j++) { obj += Math.pow(this.U[i][j], this.m) * ds[j]; if (this.U[i][j] > bestU) { bestU = this.U[i][j]; best = j; } }
+              this.labels[i] = best; this.conf[i] = bestU;
+            }
+            this.objective = obj; this.phase = 'update';
+            this.message = 'Membership step: each point divides its allegiance among all centres, with nearer centres receiving more weight.';
+          } else {
+            this.prevCentres = this.centres.map(c => ({...c}));
+            let movement = 0;
+            for (let j = 0; j < this.k; j++) {
+              let sx0 = 0, sy0 = 0, sw = 0;
+              for (let i = 0; i < this.points.length; i++) {
+                const w = Math.pow(this.U[i][j], this.m);
+                sx0 += w*this.points[i].x; sy0 += w*this.points[i].y; sw += w;
+              }
+              if (sw > 1e-12) {
+                const next = { x: sx0/sw, y: sy0/sw };
+                movement += dist(this.centres[j], next); this.centres[j] = next;
+              }
+            }
+            this.iteration++; this.phase = 'membership'; this.converged = movement < 0.0015;
+            this.message = `Update step: centres move to weighted means. Ambiguous points pull several centres weakly. Movement: ${fmt(movement, 3)}.`;
+          }
+        }
+        metrics() { return { a: this.iteration, b: fmt(this.objective, 2), c: this.k }; }
+      }
+
+      class GMM {
+        constructor(points, k, seed) {
+          this.points = points; this.k = k; this.rng = rngFactory(seed + 28181);
+          this.weights = Array(k).fill(1/k); this.means = []; this.covs = [];
+          this.resp = Array.from({ length: points.length }, () => Array(k).fill(1/k));
+          this.labels = new Array(points.length).fill(-1); this.conf = new Array(points.length).fill(1/k);
+          this.iteration = 0; this.phase = 'expect'; this.ll = -Infinity; this.prevLL = -Infinity;
+          this.converged = false; this.maxIterations = 60;
+          this.message = 'Initialise Gaussian components. Then alternate: estimate memberships, refit ellipses.';
+          this.init();
+        }
+        init() {
+          const used = new Set();
+          while (this.means.length < this.k && used.size < this.points.length) {
+            const i = Math.floor(this.rng() * this.points.length);
+            if (!used.has(i)) { used.add(i); this.means.push({ x: this.points[i].x, y: this.points[i].y }); }
+          }
+          while (this.means.length < this.k) this.means.push({ x: -0.8 + 1.6*this.rng(), y: -0.8 + 1.6*this.rng() });
+          for (let j = 0; j < this.k; j++) this.covs.push({ a: 0.16, b: 0, c: 0.16 });
+        }
+        density(p, j) {
+          const cov = this.covs[j];
+          const dx = p.x - this.means[j].x, dy = p.y - this.means[j].y;
+          const det = Math.max(1e-6, cov.a*cov.c - cov.b*cov.b);
+          const invA = cov.c / det, invB = -cov.b / det, invC = cov.a / det;
+          const q = invA*dx*dx + 2*invB*dx*dy + invC*dy*dy;
+          return Math.exp(-0.5*q) / (2*Math.PI*Math.sqrt(det));
+        }
+        expectation() {
+          let ll = 0;
+          for (let i = 0; i < this.points.length; i++) {
+            let total = 0;
+            for (let j = 0; j < this.k; j++) { const val = this.weights[j] * this.density(this.points[i], j); this.resp[i][j] = val; total += val; }
+            total = Math.max(total, 1e-12); ll += Math.log(total);
+            let best = 0, bestR = -1;
+            for (let j = 0; j < this.k; j++) { this.resp[i][j] /= total; if (this.resp[i][j] > bestR) { bestR = this.resp[i][j]; best = j; } }
+            this.labels[i] = best; this.conf[i] = bestR;
+          }
+          this.ll = ll;
+        }
+        maximisation() {
+          const n = this.points.length;
+          for (let j = 0; j < this.k; j++) {
+            let nk = 0, mx = 0, my = 0;
+            for (let i = 0; i < n; i++) { const r = this.resp[i][j]; nk += r; mx += r*this.points[i].x; my += r*this.points[i].y; }
+            nk = Math.max(nk, 1e-9); mx /= nk; my /= nk;
+            let a = 0, b = 0, c = 0;
+            for (let i = 0; i < n; i++) {
+              const r = this.resp[i][j]; const dx = this.points[i].x - mx, dy = this.points[i].y - my;
+              a += r*dx*dx; b += r*dx*dy; c += r*dy*dy;
+            }
+            this.means[j] = { x: mx, y: my };
+            this.covs[j] = { a: a/nk + 0.0035, b: b/nk, c: c/nk + 0.0035 };
+            this.weights[j] = nk/n;
+          }
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: component probabilities and Gaussian ellipses have stabilised.'; return; }
+          if (this.phase === 'expect') {
+            this.expectation();
+            const improvement = Number.isFinite(this.prevLL) ? Math.abs(this.ll - this.prevLL) : Infinity;
+            this.prevLL = this.ll;
+            this.phase = 'max';
+            if (this.iteration > 0 && improvement < 0.01) {
+              this.converged = true;
+              this.message = `Converged: log-likelihood changed by only ${fmt(improvement, 3)}.`;
+            } else {
+              this.message = 'Expectation step: every point receives a probability of coming from each Gaussian component.';
+            }
+          } else {
+            this.maximisation(); this.iteration++; this.phase = 'expect';
+            if (this.iteration >= this.maxIterations) { this.converged = true; this.message = 'Stopped: maximum EM iterations reached.'; }
+            else this.message = 'Maximisation step: Gaussian ellipses move, stretch, and rotate to fit weighted evidence.';
+          }
+        }
+        metrics() { return { a: this.iteration, b: fmt(this.ll, 1), c: this.k }; }
+      }
+
+      class DBSCAN {
+        constructor(points, eps, minPts) {
+          this.points = points; this.eps = eps; this.minPts = minPts;
+          this.labels = new Array(points.length).fill(-2); this.visited = new Array(points.length).fill(false);
+          this.kind = new Array(points.length).fill('unknown'); this.neigh = [];
+          this.active = -1; this.activeNeighbors = []; this.queue = []; this.currentCluster = -1; this.clusterCount = 0; this.stepNo = 0;
+          this.converged = false;
+          this.message = 'Pick an unvisited point. If it has enough neighbours, grow a dense connected region.';
+          this.precompute();
+        }
+        precompute() {
+          const r2 = this.eps*this.eps;
+          for (let i = 0; i < this.points.length; i++) {
+            const list = [];
+            for (let j = 0; j < this.points.length; j++) if (dist2(this.points[i], this.points[j]) <= r2) list.push(j);
+            this.neigh.push(list);
+          }
+        }
+        nextUnvisited() { for (let i = 0; i < this.points.length; i++) if (!this.visited[i]) return i; return -1; }
+        step() {
+          if (this.converged) { this.message = 'Finished: all points have been visited. Hollow grey points are noise.'; return; }
+          this.stepNo++;
+          if (this.queue.length > 0) {
+            const j = this.queue.shift(); this.active = j; this.activeNeighbors = this.neigh[j];
+            if (!this.visited[j]) {
+              this.visited[j] = true;
+              if (this.neigh[j].length >= this.minPts) {
+                this.kind[j] = 'core';
+                for (const q of this.neigh[j]) if (!this.queue.includes(q) && !this.visited[q]) this.queue.push(q);
+                this.message = `Expansion: this is a core point (${this.neigh[j].length} neighbours), so its neighbours enter the frontier.`;
+              } else { this.kind[j] = 'border'; this.message = `Expansion: this reachable point has ${this.neigh[j].length} neighbours, so it joins but does not expand the cluster.`; }
+            } else this.message = 'Expansion: the frontier contains a point already reached earlier.';
+            if (this.labels[j] < 0) this.labels[j] = this.currentCluster;
+            if (this.queue.length === 0) this.message += ' The current cluster is complete.';
+            return;
+          }
+          const i = this.nextUnvisited(); this.active = i; this.activeNeighbors = i >= 0 ? this.neigh[i] : [];
+          if (i < 0) { this.active = -1; this.activeNeighbors = []; this.converged = true; this.message = 'Finished: all points have been visited. Hollow grey points are noise.'; return; }
+          this.visited[i] = true;
+          if (this.neigh[i].length < this.minPts) { this.labels[i] = -1; this.kind[i] = 'noise'; this.message = `Start point: only ${this.neigh[i].length} neighbours inside eps, so it is provisionally marked as noise.`; }
+          else { this.currentCluster = this.clusterCount++; this.labels[i] = this.currentCluster; this.kind[i] = 'core'; this.queue = this.neigh[i].filter(j => j !== i); this.message = `New cluster: ${this.neigh[i].length} neighbours inside eps. This core point starts a density-connected region.`; }
+        }
+        metrics() { return { a: this.stepNo, b: this.labels.filter(x => x === -1).length, c: this.clusterCount }; }
+      }
+
+
+      class HDBSCANStyle {
+        constructor(points, minPts, minClusterSize) {
+          this.points = points;
+          this.minPts = minPts;
+          this.minClusterSize = minClusterSize;
+          this.labels = new Array(points.length).fill(-1);
+          this.activeEdge = null;
+          this.activeEdges = [];
+          this.coreDist = [];
+          this.edges = [];
+          this.edgeLimit = 0;
+          this.stepNo = 0;
+          this.scale = 0;
+          this.clusterCount = 0;
+          this.converged = false;
+          this.message = 'Visual approximation: compute local core distances, connect points by mutual-reachability distance, then sweep through a density hierarchy. This is HDBSCAN-style, not the full production HDBSCAN algorithm.';
+          this.precompute();
+          this.chooseTarget();
+          this.updateLabels(0);
+        }
+        precompute() {
+          const n = this.points.length;
+          this.euclid = Array.from({ length: n }, () => Array(n).fill(0));
+          for (let i = 0; i < n; i++) {
+            const row = [];
+            for (let j = 0; j < n; j++) {
+              const d = i === j ? 0 : dist(this.points[i], this.points[j]);
+              this.euclid[i][j] = d;
+              if (i !== j) row.push(d);
+            }
+            row.sort((a,b) => a-b);
+            this.coreDist[i] = row[Math.min(row.length-1, Math.max(0, this.minPts-1))] || 0;
+          }
+          this.buildMST();
+        }
+        mutualReachability(i, j) {
+          return Math.max(this.coreDist[i], this.coreDist[j], this.euclid[i][j]);
+        }
+        buildMST() {
+          const n = this.points.length;
+          if (n <= 1) { this.edges = []; return; }
+          const inTree = new Array(n).fill(false);
+          const best = new Array(n).fill(Infinity);
+          const parent = new Array(n).fill(-1);
+          inTree[0] = true;
+          for (let j = 1; j < n; j++) { best[j] = this.mutualReachability(0, j); parent[j] = 0; }
+          const edges = [];
+          for (let c = 1; c < n; c++) {
+            let v = -1, bv = Infinity;
+            for (let j = 0; j < n; j++) if (!inTree[j] && best[j] < bv) { bv = best[j]; v = j; }
+            if (v < 0) break;
+            inTree[v] = true;
+            edges.push({ i: parent[v], j: v, w: bv });
+            for (let u = 0; u < n; u++) {
+              if (!inTree[u]) {
+                const w = this.mutualReachability(v, u);
+                if (w < best[u]) { best[u] = w; parent[u] = v; }
+              }
+            }
+          }
+          edges.sort((a,b) => a.w - b.w);
+          this.edges = edges;
+        }
+        components(edgeLimit) {
+          const n = this.points.length;
+          const parent = Array.from({ length: n }, (_, i) => i);
+          const find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+          const unite = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[rb] = ra; };
+          for (let e = 0; e < edgeLimit && e < this.edges.length; e++) unite(this.edges[e].i, this.edges[e].j);
+          const map = new Map();
+          for (let i = 0; i < n; i++) { const r = find(i); if (!map.has(r)) map.set(r, []); map.get(r).push(i); }
+          return [...map.values()];
+        }
+        labelsFor(edgeLimit) {
+          const comps = this.components(edgeLimit);
+          const valid = comps.filter(c => c.length >= this.minClusterSize);
+          valid.sort((a,b) => centroidOf(a, this.points).x - centroidOf(b, this.points).x);
+          const labels = new Array(this.points.length).fill(-1);
+          valid.forEach((c, lab) => c.forEach(i => labels[i] = lab));
+          return { labels, valid, comps };
+        }
+        chooseTarget() {
+          if (this.edges.length === 0) { this.targetEdgeLimit = 0; this.steps = [0]; return; }
+          let bestLimit = 0, bestScore = -Infinity;
+          for (let limit = 0; limit <= this.edges.length; limit++) {
+            const { valid } = this.labelsFor(limit);
+            const k = valid.length;
+            const coverage = valid.reduce((s,c) => s + c.length, 0) / Math.max(1, this.points.length);
+            const largest = valid.length ? Math.max(...valid.map(c => c.length)) / this.points.length : 0;
+            const sizeBalance = valid.length ? valid.reduce((s,c) => s + Math.sqrt(c.length / this.points.length), 0) : 0;
+            const score = (k >= 2 ? 1.35*coverage : -0.3) + 0.38*Math.log(k + 1) + 0.30*sizeBalance - 0.78*largest*largest;
+            if (score > bestScore) { bestScore = score; bestLimit = limit; }
+          }
+          this.targetEdgeLimit = Math.max(0, bestLimit);
+          const frames = Math.min(76, Math.max(12, this.targetEdgeLimit || 12));
+          const steps = [];
+          for (let f = 0; f <= frames; f++) steps.push(Math.round((this.targetEdgeLimit * f) / frames));
+          this.steps = [...new Set(steps)];
+          if (!this.steps.includes(this.targetEdgeLimit)) this.steps.push(this.targetEdgeLimit);
+        }
+        updateLabels(edgeLimit) {
+          this.edgeLimit = edgeLimit;
+          const res = this.labelsFor(edgeLimit);
+          this.labels = res.labels;
+          this.clusterCount = res.valid.length;
+          this.scale = edgeLimit > 0 ? this.edges[Math.min(edgeLimit-1, this.edges.length-1)].w : 0;
+          this.activeEdges = this.edges.slice(0, edgeLimit);
+          this.activeEdge = edgeLimit > 0 ? this.edges[Math.min(edgeLimit-1, this.edges.length-1)] : null;
+        }
+        step() {
+          if (this.converged) { this.message = 'Finished: the visual sweep has reached its selected stable density level.'; return; }
+          this.stepNo++;
+          const nextIdx = Math.min(this.steps.length - 1, this.stepNo);
+          this.updateLabels(this.steps[nextIdx]);
+          const lambda = this.scale > 0 ? 1 / this.scale : Infinity;
+          this.message = `Hierarchy sweep: add mutual-reachability links up to distance ${fmt(this.scale, 3)}. Components with at least ${this.minClusterSize} points are shown as candidate clusters.`;
+          if (nextIdx >= this.steps.length - 1) {
+            this.converged = true;
+            this.message = `Selected visual density level: ${this.clusterCount} candidate cluster${this.clusterCount === 1 ? '' : 's'} remain after small components are treated as noise. This is an HDBSCAN-style teaching approximation.`;
+          }
+        }
+        metrics() { return { a: this.stepNo, b: this.scale ? fmt(1/this.scale, 2) : '∞', c: this.clusterCount }; }
+      }
+
+      class MeanShift {
+        constructor(points, bandwidth) {
+          this.points = points; this.bandwidth = bandwidth; this.shifted = points.map(p => ({ x: p.x, y: p.y }));
+          this.prev = this.shifted.map(p => ({...p})); this.labels = new Array(points.length).fill(0);
+          this.modes = []; this.iteration = 0; this.movement = Infinity; this.converged = false;
+          this.message = 'Each point climbs the density surface by moving toward the local weighted mean.';
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: shifted points have gathered around density modes.'; return; }
+          const h2 = this.bandwidth*this.bandwidth;
+          this.prev = this.shifted.map(p => ({...p}));
+          let totalMove = 0;
+          for (let i = 0; i < this.shifted.length; i++) {
+            let sx0 = 0, sy0 = 0, sw = 0;
+            const q = this.shifted[i];
+            for (const p of this.points) {
+              const d2 = dist2(q, p);
+              const w = Math.exp(-0.5*d2/Math.max(1e-8, h2));
+              sx0 += w*p.x; sy0 += w*p.y; sw += w;
+            }
+            const next = { x: sx0/sw, y: sy0/sw };
+            totalMove += dist(q, next); this.shifted[i] = next;
+          }
+          this.iteration++; this.movement = totalMove / this.shifted.length; this.assignModes(); this.converged = this.movement < 0.0015;
+          this.message = `Shift step: every point moves uphill toward a local density mode. Mean movement: ${fmt(this.movement, 4)}.`;
+        }
+        assignModes() {
+          const modes = []; const labels = new Array(this.points.length).fill(-1);
+          const r = this.bandwidth * 0.55;
+          for (let i = 0; i < this.shifted.length; i++) {
+            let lab = -1;
+            for (let m = 0; m < modes.length; m++) if (dist(this.shifted[i], modes[m]) < r) { lab = m; break; }
+            if (lab < 0) { lab = modes.length; modes.push({ x: this.shifted[i].x, y: this.shifted[i].y, n: 0 }); }
+            labels[i] = lab; modes[lab].n++;
+          }
+          this.labels = labels; this.modes = modes;
+        }
+        metrics() { return { a: this.iteration, b: fmt(this.movement, 4), c: this.modes.length || 0 }; }
+      }
+
+      class Agglomerative {
+        constructor(points, linkage, target, maxN = 150) {
+          this.originalPoints = points; this.points = points.length > maxN ? points.slice(0, maxN) : points;
+          this.omitted = points.length - this.points.length; this.linkage = linkage; this.target = target;
+          this.history = []; this.stepIndex = 0; this.labels = new Array(this.points.length).fill(0);
+          this.converged = false;
+          this.message = 'Start with every point alone. Repeatedly merge the closest pair of clusters.';
+          this.compute();
+        }
+        clusterDistance(a, b) {
+          if (this.linkage === 'ward') {
+            const ca = centroidOf(a.members, this.points), cb = centroidOf(b.members, this.points);
+            return (a.members.length * b.members.length) / (a.members.length + b.members.length) * dist2(ca, cb);
+          }
+          let best = this.linkage === 'complete' ? -Infinity : 0;
+          if (this.linkage === 'single') best = Infinity;
+          let count = 0;
+          for (const i of a.members) for (const j of b.members) {
+            const d = dist(this.points[i], this.points[j]);
+            if (this.linkage === 'single') best = Math.min(best, d);
+            else if (this.linkage === 'complete') best = Math.max(best, d);
+            else { best += d; count++; }
+          }
+          if (this.linkage === 'average') best /= Math.max(1, count);
+          return best;
+        }
+        compute() {
+          let clusters = this.points.map((_, i) => ({ id: i, members: [i] }));
+          let nextId = this.points.length;
+          const labelsFromClusters = (clusters) => {
+            const labels = new Array(this.points.length).fill(0);
+            clusters.forEach((c, idx) => c.members.forEach(i => labels[i] = idx));
+            return labels;
+          };
+          this.history.push({ labels: labelsFromClusters(clusters), clusters: clusters.map(c => c.members.slice()), merge: null, dist: 0 });
+          while (clusters.length > 1) {
+            let bi = 0, bj = 1, bd = Infinity;
+            for (let i = 0; i < clusters.length; i++) for (let j = i+1; j < clusters.length; j++) {
+              const d = this.clusterDistance(clusters[i], clusters[j]); if (d < bd) { bd = d; bi = i; bj = j; }
+            }
+            const left = clusters[bi], right = clusters[bj];
+            const merged = { id: nextId++, members: left.members.concat(right.members) };
+            const ca = centroidOf(left.members, this.points), cb = centroidOf(right.members, this.points);
+            clusters = clusters.filter((_, idx) => idx !== bi && idx !== bj); clusters.push(merged);
+            this.history.push({ labels: labelsFromClusters(clusters), clusters: clusters.map(c => c.members.slice()), merge: { left: left.members.slice(), right: right.members.slice(), ca, cb }, dist: bd });
+          }
+          this.labels = this.history[0].labels.slice();
+        }
+        step() {
+          const targetStep = Math.max(0, this.points.length - this.target);
+          if (this.converged) { this.message = `Finished: the hierarchy has been cut at ${this.target} clusters.`; return; }
+          if (this.stepIndex < targetStep) this.stepIndex++;
+          const h = this.history[this.stepIndex]; this.labels = h.labels.slice();
+          const clustersNow = this.points.length - this.stepIndex;
+          if (this.stepIndex >= targetStep) this.converged = true;
+          this.message = h.merge ? `Merge step: the closest two clusters are joined. The hierarchy now has ${clustersNow} live clusters.` : 'Initial state: each point is its own cluster.';
+          if (this.converged) this.message += ` Cut reached: ${this.target} clusters.`;
+        }
+        metrics() { return { a: this.stepIndex, b: fmt(this.history[this.stepIndex]?.dist || 0, 3), c: this.points.length - this.stepIndex }; }
+      }
+
+      class GraphCommunities {
+        constructor(points, k, neighbors, seed) {
+          this.points = points; this.k = k; this.neighbors = neighbors; this.rng = rngFactory(seed + 9091);
+          this.labels = new Array(points.length).fill(0); this.prevLabels = this.labels.slice();
+          this.edges = []; this.iteration = 0; this.changed = points.length;
+          this.converged = false; this.maxIterations = 80;
+          this.message = 'Build a nearest-neighbour graph. Then labels diffuse through strong local connections.';
+          this.buildGraph(); this.initLabels();
+        }
+        buildGraph() {
+          const edgeSet = new Set();
+          this.nn = [];
+          for (let i = 0; i < this.points.length; i++) {
+            const ds = [];
+            for (let j = 0; j < this.points.length; j++) if (i !== j) ds.push([j, dist2(this.points[i], this.points[j])]);
+            ds.sort((a,b) => a[1]-b[1]);
+            const arr = ds.slice(0, this.neighbors).map(([j,d2]) => ({ j, w: 1/Math.max(1e-6, Math.sqrt(d2)) }));
+            this.nn[i] = arr;
+            for (const e of arr) { const a = Math.min(i, e.j), b = Math.max(i, e.j); edgeSet.add(`${a},${b}`); }
+          }
+          this.edges = [...edgeSet].map(s => s.split(',').map(Number));
+        }
+        initLabels() {
+          const seeds = [];
+          const used = new Set();
+          while (seeds.length < this.k && used.size < this.points.length) {
+            const i = Math.floor(this.rng() * this.points.length);
+            if (!used.has(i)) { used.add(i); seeds.push(i); }
+          }
+          for (let i = 0; i < this.points.length; i++) {
+            let best = 0, bd = Infinity;
+            for (let j = 0; j < seeds.length; j++) { const d = dist2(this.points[i], this.points[seeds[j]]); if (d < bd) { bd = d; best = j; } }
+            this.labels[i] = best;
+          }
+        }
+        step() {
+          if (this.converged) { this.message = 'Converged: no point changes label under the neighbour rule.'; return; }
+          this.prevLabels = this.labels.slice();
+          const order = [...Array(this.points.length).keys()].sort(() => this.rng() - 0.5);
+          let changed = 0;
+          for (const i of order) {
+            const score = Array(this.k).fill(0);
+            for (const e of this.nn[i]) score[this.labels[e.j] % this.k] += e.w;
+            let best = this.labels[i], bs = -Infinity;
+            for (let j = 0; j < this.k; j++) if (score[j] > bs) { bs = score[j]; best = j; }
+            if (best !== this.labels[i]) changed++;
+            this.labels[i] = best;
+          }
+          this.iteration++; this.changed = changed;
+          if (changed === 0) { this.converged = true; this.message = 'Converged: no point changed label under the neighbour rule.'; }
+          else if (this.iteration >= this.maxIterations) { this.converged = true; this.message = `Stopped: ${this.maxIterations} diffusion steps reached; ${changed} labels changed on the final step.`; }
+          else this.message = `Diffusion step: each point adopts the strongest label among its graph neighbours. ${changed} label${changed === 1 ? '' : 's'} changed.`;
+        }
+        metrics() { return { a: this.iteration, b: this.changed, c: uniqueCount(this.labels) }; }
+      }
+
+      function centroidOf(members, pts) { let x = 0, y = 0; for (const i of members) { x += pts[i].x; y += pts[i].y; } return { x: x/members.length, y: y/members.length }; }
+
+      function computeView() {
+        if (!points.length || !els.canvas) return;
+        let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+        for (const p of points) { xmin = Math.min(xmin, p.x); xmax = Math.max(xmax, p.x); ymin = Math.min(ymin, p.y); ymax = Math.max(ymax, p.y); }
+        let cx = (xmin+xmax)/2, cy = (ymin+ymax)/2;
+        let w = Math.max(0.35, xmax-xmin), h = Math.max(0.35, ymax-ymin);
+        const rect = els.canvas.getBoundingClientRect();
+        const aspect = Math.max(0.2, rect.width / Math.max(1, rect.height));
+        const pad = 1.08;
+        w *= pad; h *= pad;
+        if (w / h < aspect) w = h * aspect; else h = w / aspect;
+        view = { xmin: cx - w/2, xmax: cx + w/2, ymin: cy - h/2, ymax: cy + h/2 };
+      }
+
+      function resizeCanvas() {
+        const wrap = els.canvas.parentElement;
+        const rect = wrap.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2.4, window.devicePixelRatio || 1));
+        els.canvas.width = Math.floor(rect.width * dpr);
+        els.canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        computeView(); draw();
+      }
+
+      function sx(x) { const w = els.canvas.getBoundingClientRect().width; return ((x - view.xmin) / (view.xmax - view.xmin)) * w; }
+      function sy(y) { const h = els.canvas.getBoundingClientRect().height; return h - ((y - view.ymin) / (view.ymax - view.ymin)) * h; }
+      function wx(px) { const w = els.canvas.getBoundingClientRect().width; return view.xmin + (px / w) * (view.xmax - view.xmin); }
+      function wy(py) { const h = els.canvas.getBoundingClientRect().height; return view.ymax - (py / h) * (view.ymax - view.ymin); }
+      function worldPerPixel() { const w = els.canvas.getBoundingClientRect().width; return (view.xmax - view.xmin) / Math.max(1, w); }
+
+      function clear() { const rect = els.canvas.getBoundingClientRect(); ctx.clearRect(0, 0, rect.width, rect.height); }
+
+      function draw() {
+        if (!algo) return;
+        clear();
+        const p = params();
+        drawFrame();
+        if (p.method === 'kmeans') drawKMeans(p);
+        if (p.method === 'kmedoids') drawKMedoids(p);
+        if (p.method === 'fuzzy') drawFuzzy(p);
+        if (p.method === 'gmm') drawGMM(p);
+        if (p.method === 'dbscan') drawDBSCAN(p);
+        if (p.method === 'hdbscan') drawHDBSCAN(p);
+        if (p.method === 'meanshift') drawMeanShift(p);
+        if (p.method === 'agglo') drawAgglo(p);
+        if (p.method === 'graph') drawGraph(p);
+        updateText();
+      }
+
+      function drawFrame() {
+        const rect = els.canvas.getBoundingClientRect();
+        ctx.save();
+        ctx.strokeStyle = 'rgba(17,17,17,0.12)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, rect.width-1, rect.height-1);
+        ctx.restore();
+      }
+
+      function drawPoints(pts, labels, options = {}) {
+        const soft = options.soft || null;
+        const activeSet = options.activeSet || new Set();
+        const hollowNoise = !!options.hollowNoise;
+        const largeActive = !!options.largeActive;
+        const muted = !!options.muted;
+        const radius = options.radius || 3.75;
+        ctx.save();
+        for (let i = 0; i < pts.length; i++) {
+          const lab = labels ? labels[i] : -2;
+          const isNoise = lab === -1;
+          const active = activeSet.has(i);
+          const col = lab >= 0 ? palette[lab % palette.length] : neutral;
+          const alpha = muted ? 0.34 : (soft ? lerp(0.22, 0.92, soft[i]) : 0.84);
+          const r = active && largeActive ? radius + 2.1 : (active ? radius + 1.2 : radius);
+          ctx.beginPath(); ctx.arc(sx(pts[i].x), sy(pts[i].y), r, 0, Math.PI*2);
+          if (isNoise && hollowNoise) {
+            ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.strokeStyle = 'rgba(35,35,32,0.50)'; ctx.lineWidth = active ? 1.7 : 1.05; ctx.fill(); ctx.stroke();
+          } else {
+            ctx.fillStyle = cssAlpha(col, active ? 1 : alpha); ctx.fill();
+            ctx.strokeStyle = active ? 'rgba(0,0,0,0.64)' : 'rgba(255,255,255,0.80)'; ctx.lineWidth = active ? 1.4 : 0.65; ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawKMeans(p) {
+        if (p.mechanics && algo.centres.length) drawVoronoi(algo.centres);
+        if (p.mechanics && algo.labels.some(x => x >= 0)) drawAssignmentRays(algo.points, algo.labels, algo.centres, 0.16);
+        drawPoints(algo.points, algo.labels);
+        drawCentreMoves(algo.prevCentres, algo.centres);
+        drawCentres(algo.centres, 'cross');
+      }
+
+      function drawKMedoids(p) {
+        if (p.mechanics && algo.medoids.length) drawVoronoi(algo.centres(), 0.115, true);
+        if (p.mechanics && algo.labels.some(x => x >= 0)) drawAssignmentRays(algo.points, algo.labels, algo.centres(), 0.13);
+        drawPoints(algo.points, algo.labels);
+        drawCentreMoves(algo.prevCentres(), algo.centres());
+        drawCentres(algo.centres(), 'diamond');
+      }
+
+      function drawFuzzy(p) {
+        if (p.mechanics && algo.labels.some(x => x >= 0)) drawFuzzyRays(algo.points, algo.U, algo.centres);
+        drawPoints(algo.points, algo.labels, { soft: p.soft ? algo.conf : null });
+        drawCentreMoves(algo.prevCentres, algo.centres);
+        drawCentres(algo.centres, 'cross');
+      }
+
+      function clipPolygonHalfPlane(poly, a, b, c) {
+        // Keep points satisfying a*x + b*y <= c, in world coordinates.
+        const out = [];
+        if (!poly.length) return out;
+        for (let i = 0; i < poly.length; i++) {
+          const current = poly[i];
+          const previous = poly[(i + poly.length - 1) % poly.length];
+          const vc = a*current.x + b*current.y - c;
+          const vp = a*previous.x + b*previous.y - c;
+          const insideC = vc <= 1e-10;
+          const insideP = vp <= 1e-10;
+          if (insideC !== insideP) {
+            const t = vp / (vp - vc);
+            out.push({ x: previous.x + t*(current.x - previous.x), y: previous.y + t*(current.y - previous.y) });
+          }
+          if (insideC) out.push(current);
+        }
+        return out;
+      }
+
+      function drawVoronoi(centres, alpha = 0.18, dotted = false) {
+        // Exact convex Voronoi cells clipped to the current rectangular viewport.
+        // This avoids the tiled background artefact caused by raster sampling.
+        if (!centres || !centres.length) return;
+        const bounds = [
+          { x: view.xmin, y: view.ymin },
+          { x: view.xmax, y: view.ymin },
+          { x: view.xmax, y: view.ymax },
+          { x: view.xmin, y: view.ymax }
+        ];
+        ctx.save();
+        for (let i = 0; i < centres.length; i++) {
+          let poly = bounds.slice();
+          const ci = centres[i];
+          for (let j = 0; j < centres.length; j++) {
+            if (i === j) continue;
+            const cj = centres[j];
+            const a = 2 * (cj.x - ci.x);
+            const b = 2 * (cj.y - ci.y);
+            const c = cj.x*cj.x + cj.y*cj.y - ci.x*ci.x - ci.y*ci.y;
+            poly = clipPolygonHalfPlane(poly, a, b, c);
+            if (!poly.length) break;
+          }
+          if (poly.length < 3) continue;
+          ctx.beginPath();
+          ctx.moveTo(sx(poly[0].x), sy(poly[0].y));
+          for (let q = 1; q < poly.length; q++) ctx.lineTo(sx(poly[q].x), sy(poly[q].y));
+          ctx.closePath();
+          ctx.fillStyle = cssAlpha(palette[i % palette.length], alpha);
+          ctx.fill();
+          ctx.strokeStyle = dotted ? 'rgba(17,17,17,0.16)' : 'rgba(17,17,17,0.25)';
+          ctx.lineWidth = dotted ? 0.8 : 1.05;
+          if (dotted) ctx.setLineDash([2.5, 4.0]); else ctx.setLineDash([]);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawAssignmentRays(pts, labels, centres, alpha) {
+        const stride = Math.max(1, Math.ceil(pts.length / 150));
+        ctx.save(); ctx.lineWidth = 0.55;
+        for (let i = 0; i < pts.length; i += stride) {
+          const lab = labels[i]; if (lab < 0 || !centres[lab]) continue;
+          ctx.strokeStyle = cssAlpha(palette[lab % palette.length], alpha);
+          ctx.beginPath(); ctx.moveTo(sx(pts[i].x), sy(pts[i].y)); ctx.lineTo(sx(centres[lab].x), sy(centres[lab].y)); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawFuzzyRays(pts, U, centres) {
+        const stride = Math.max(1, Math.ceil(pts.length / 85));
+        ctx.save(); ctx.lineWidth = 0.55;
+        for (let i = 0; i < pts.length; i += stride) for (let j = 0; j < centres.length; j++) {
+          const a = Math.pow(U[i][j], 1.5) * 0.28;
+          if (a < 0.018) continue;
+          ctx.strokeStyle = cssAlpha(palette[j % palette.length], a);
+          ctx.beginPath(); ctx.moveTo(sx(pts[i].x), sy(pts[i].y)); ctx.lineTo(sx(centres[j].x), sy(centres[j].y)); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawCentres(centres, mode = 'cross') {
+        ctx.save();
+        centres.forEach((c, j) => {
+          const x = sx(c.x), y = sy(c.y);
+          ctx.beginPath();
+          if (mode === 'diamond') {
+            ctx.moveTo(x, y-9); ctx.lineTo(x+9, y); ctx.lineTo(x, y+9); ctx.lineTo(x-9, y); ctx.closePath();
+          } else ctx.arc(x, y, 8.4, 0, Math.PI*2);
+          ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#111111'; ctx.lineWidth = 1.8; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x-5, y); ctx.lineTo(x+5, y); ctx.moveTo(x, y-5); ctx.lineTo(x, y+5);
+          ctx.strokeStyle = palette[j % palette.length]; ctx.lineWidth = 2; ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      function drawCentreMoves(prev, centres) {
+        ctx.save(); ctx.lineWidth = 1.45;
+        for (let j = 0; j < centres.length; j++) {
+          if (!prev[j]) continue; if (dist(prev[j], centres[j]) < 0.002) continue;
+          ctx.strokeStyle = cssAlpha(palette[j % palette.length], 0.55);
+          arrow(sx(prev[j].x), sy(prev[j].y), sx(centres[j].x), sy(centres[j].y));
+        }
+        ctx.restore();
+      }
+
+      function arrow(x1, y1, x2, y2) {
+        const a = Math.atan2(y2-y1, x2-x1);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 6*Math.cos(a - 0.45), y2 - 6*Math.sin(a - 0.45));
+        ctx.moveTo(x2, y2); ctx.lineTo(x2 - 6*Math.cos(a + 0.45), y2 - 6*Math.sin(a + 0.45)); ctx.stroke();
+      }
+
+      function drawGMM(p) {
+        if (p.mechanics) drawEllipses(algo.means, algo.covs, algo.weights);
+        drawPoints(algo.points, algo.labels, { soft: p.soft ? algo.conf : null });
+        drawCentres(algo.means, 'cross');
+      }
+
+      function drawEllipses(means, covs, weights) {
+        ctx.save();
+        means.forEach((m, j) => {
+          const eig = eigen2(covs[j]); const scales = [2.65, 1.75, 1.0];
+          for (const mult of scales) {
+            ctx.save(); ctx.translate(sx(m.x), sy(m.y)); ctx.rotate(-eig.angle);
+            const rx = Math.sqrt(Math.max(eig.l1, 1e-6)) * mult / worldPerPixel();
+            const ry = Math.sqrt(Math.max(eig.l2, 1e-6)) * mult / worldPerPixel();
+            ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2);
+            ctx.strokeStyle = cssAlpha(palette[j % palette.length], mult === 1 ? 0.42 : 0.24);
+            ctx.lineWidth = mult === 1 ? 1.35 : 1.0; ctx.stroke();
+            if (mult === 1) { ctx.fillStyle = cssAlpha(palette[j % palette.length], 0.035 + 0.025*weights[j]); ctx.fill(); }
+            ctx.restore();
+          }
+        });
+        ctx.restore();
+      }
+
+      function eigen2(cov) {
+        const tr = cov.a + cov.c, det = cov.a*cov.c - cov.b*cov.b;
+        const disc = Math.sqrt(Math.max(0, tr*tr/4 - det));
+        const l1 = tr/2 + disc, l2 = tr/2 - disc;
+        const angle = Math.atan2(l1 - cov.a, cov.b || 1e-12);
+        return { l1, l2, angle };
+      }
+
+      function drawDBSCAN(p) {
+        const activeSet = new Set(algo.activeNeighbors); if (algo.active >= 0) activeSet.add(algo.active);
+        if (p.mechanics) drawDBSCANEdges();
+        drawPoints(algo.points, algo.labels, { activeSet, hollowNoise: true, largeActive: true });
+        if (p.mechanics && algo.active >= 0) drawCircle(algo.points[algo.active], algo.eps, palette[0]);
+      }
+
+
+      function drawHDBSCAN(p) {
+        if (p.mechanics) {
+          ctx.save();
+          ctx.lineWidth = 0.62;
+          const maxEdges = 850;
+          const stride = Math.max(1, Math.ceil(algo.activeEdges.length / maxEdges));
+          for (let e = 0; e < algo.activeEdges.length; e += stride) {
+            const edge = algo.activeEdges[e];
+            const a = algo.points[edge.i], b = algo.points[edge.j];
+            ctx.strokeStyle = 'rgba(17,17,17,0.105)';
+            ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke();
+          }
+          if (algo.activeEdge) {
+            const a = algo.points[algo.activeEdge.i], b = algo.points[algo.activeEdge.j];
+            ctx.strokeStyle = 'rgba(17,17,17,0.58)';
+            ctx.lineWidth = 1.45;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.restore();
+        }
+        const active = new Set();
+        if (algo.activeEdge) { active.add(algo.activeEdge.i); active.add(algo.activeEdge.j); }
+        // Before the hierarchy sweep starts, points are not yet classified as noise.
+        // Display them as ordinary neutral points; use hollow circles only after the
+        // sweep has actually marked small components as noise/unclustered.
+        const displayLabels = algo.stepNo === 0 ? new Array(algo.points.length).fill(-2) : algo.labels;
+        drawPoints(algo.points, displayLabels, { activeSet: active, hollowNoise: true, largeActive: true });
+        if (p.mechanics && algo.activeEdge) {
+          drawCircle(algo.points[algo.activeEdge.i], algo.coreDist[algo.activeEdge.i], palette[0]);
+          drawCircle(algo.points[algo.activeEdge.j], algo.coreDist[algo.activeEdge.j], palette[1]);
+        }
+      }
+
+      function drawDBSCANEdges() {
+        if (algo.active < 0) return;
+        const a = algo.points[algo.active];
+        ctx.save(); ctx.lineWidth = 0.75; ctx.strokeStyle = 'rgba(24,59,74,0.18)';
+        for (const j of algo.activeNeighbors) { const b = algo.points[j]; ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke(); }
+        ctx.restore();
+      }
+
+      function drawCircle(p, radius, col) {
+        ctx.save(); ctx.beginPath(); ctx.arc(sx(p.x), sy(p.y), radius / worldPerPixel(), 0, Math.PI*2);
+        ctx.fillStyle = cssAlpha(col, 0.035); ctx.strokeStyle = cssAlpha(col, 0.38); ctx.lineWidth = 1.35; ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+
+      function drawMeanShift(p) {
+        if (p.mechanics) {
+          const stride = Math.max(1, Math.ceil(algo.points.length / 140));
+          ctx.save(); ctx.lineWidth = 0.7;
+          for (let i = 0; i < algo.points.length; i += stride) {
+            const lab = algo.labels[i] >= 0 ? algo.labels[i] : 0;
+            ctx.strokeStyle = cssAlpha(palette[lab % palette.length], 0.20);
+            arrow(sx(algo.points[i].x), sy(algo.points[i].y), sx(algo.shifted[i].x), sy(algo.shifted[i].y));
+          }
+          ctx.restore();
+        }
+        drawPoints(algo.points, algo.labels, { muted: false });
+        if (p.mechanics) drawPoints(algo.shifted, algo.labels, { radius: 2.25, muted: true });
+        drawCentres(algo.modes, 'cross');
+      }
+
+      function drawAgglo(p) {
+        const h = algo.history[algo.stepIndex] || algo.history[0];
+        const clustersNow = algo.points.length - algo.stepIndex;
+        const active = new Set();
+        if (h.merge) { h.merge.left.concat(h.merge.right).forEach(i => active.add(i)); drawMergeLine(h.merge.ca, h.merge.cb); }
+        const labels = h.labels;
+        const displayLabels = clustersNow <= Math.max(12, p.targetClusters + 3) ? labels : labels.map(() => -2);
+        drawPoints(algo.points, displayLabels, { activeSet: active, largeActive: true, muted: clustersNow > 14 });
+        if (algo.omitted > 0) drawOmittedNote(algo.omitted);
+      }
+
+      function drawMergeLine(a, b) {
+        ctx.save(); ctx.strokeStyle = 'rgba(17,17,17,0.42)'; ctx.lineWidth = 1.5; ctx.setLineDash([4,5]);
+        ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(17,17,17,0.82)'; ctx.beginPath(); ctx.arc(sx(a.x), sy(a.y), 3.2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), 3.2, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      }
+
+      function drawOmittedNote(n) {
+        ctx.save(); ctx.fillStyle = 'rgba(17,17,17,0.55)'; ctx.font = '12px IBM Plex Mono, SFMono-Regular, Menlo, Consolas, monospace'; ctx.fillText(`hierarchy preview uses first ${algo.points.length} points; ${n} omitted for speed`, 16, 22); ctx.restore();
+      }
+
+      function drawGraph(p) {
+        if (p.mechanics) {
+          ctx.save(); ctx.lineWidth = 0.45; ctx.strokeStyle = faintLine;
+          const maxEdges = 1300; const stride = Math.max(1, Math.ceil(algo.edges.length / maxEdges));
+          for (let e = 0; e < algo.edges.length; e += stride) { const [i,j] = algo.edges[e]; const a = algo.points[i], b = algo.points[j]; ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke(); }
+          ctx.restore();
+        }
+        const active = new Set();
+        for (let i = 0; i < algo.labels.length; i++) if (algo.labels[i] !== algo.prevLabels[i]) active.add(i);
+        drawPoints(algo.points, algo.labels, { activeSet: active, largeActive: true });
+      }
+
+      function methodInfo(method) {
+        return {
+          kmeans: {
+            name: 'k-means', subtitle: 'Alternates between nearest-centre assignment and mean-centre update.',
+            principle: 'Choose k centres. Assign each point to its nearest centre. Move each centre to the arithmetic mean of the points assigned to it. Repeat until assignments and centres stabilise.',
+            labels: ['step', 'inertia', 'clusters'],
+            legend: [['Assignment', palette[0]], ['Centre', '#111111'], ['Voronoi cell', '#cbd7d8']]
+          },
+          kmedoids: {
+            name: 'k-medoids', subtitle: 'Alternates between nearest-representative assignment and medoid update.',
+            principle: 'Choose k observed data points as representatives. Assign each point to its nearest representative. For each cluster, choose the member point with the smallest total distance to the other members.',
+            labels: ['step', 'cost', 'clusters'],
+            legend: [['Assignment', palette[0]], ['Medoid', '#111111'], ['Nearest-medoid cell', '#d9d2cd']]
+          },
+          fuzzy: {
+            name: 'Fuzzy c-means', subtitle: 'Updates membership weights and weighted centres.',
+            principle: 'Each point has a membership weight for every centre. Weights are recalculated from relative distances, then each centre moves to the weighted mean of all points.',
+            labels: ['step', 'objective', 'clusters'],
+            legend: [['Strong membership', palette[0]], ['Weak membership', '#c7c2ba'], ['Centre', '#111111']]
+          },
+          gmm: {
+            name: 'Gaussian mixture', subtitle: 'Fits Gaussian components by expectation-maximisation.',
+            principle: 'The E-step estimates the probability that each component generated each point. The M-step updates each component’s mean, covariance ellipse, and weight from those probabilities.',
+            labels: ['step', 'log-like.', 'components'],
+            legend: [['Likely component', palette[0]], ['Gaussian ellipse', '#183b4a'], ['Weak membership', '#c7c2ba']]
+          },
+          dbscan: {
+            name: 'DBSCAN', subtitle: 'Expands clusters from dense eps-neighbourhoods.',
+            principle: 'For each point, count neighbours within eps. A point with at least minPts neighbours is a core point. Connected core neighbourhoods expand into clusters; unreached points are labelled noise.',
+            labels: ['step', 'noise', 'clusters'],
+            legend: [['Clustered point', palette[0]], ['eps neighbourhood', '#0072B2'], ['Noise', '#ffffff']]
+          },
+          hdbscan: {
+            name: 'HDBSCAN-style hierarchy', subtitle: 'Visualises the main density-hierarchy idea; it is not full production HDBSCAN.',
+            principle: 'This visual mode estimates each point’s core distance, builds mutual-reachability links, and sweeps through the resulting density hierarchy. It illustrates the main HDBSCAN idea, but does not implement the full condensed-tree stability selection used by production HDBSCAN libraries.',
+            labels: ['step', 'density', 'clusters'],
+            legend: [['Stable component', palette[0]], ['Hierarchy link', '#b9b9b0'], ['Condensed noise', '#ffffff']]
+          },
+          meanshift: {
+            name: 'Mean shift', subtitle: 'Moves points uphill toward local density modes.',
+            principle: 'For each point, find nearby points within the bandwidth and move to their local mean. Points whose paths converge to the same mode receive the same cluster label.',
+            labels: ['step', 'movement', 'modes'],
+            legend: [['Original point', palette[0]], ['Shifted point', '#c7c2ba'], ['Density mode', '#111111']]
+          },
+          agglo: {
+            name: 'Agglomerative hierarchy', subtitle: 'Builds a hierarchy by repeated pairwise merging.',
+            principle: 'Start with every point as its own cluster. At each step, merge the two clusters with the smallest linkage distance. The displayed clustering is the hierarchy cut at the chosen number of clusters.',
+            labels: ['merge', 'height', 'live clusters'],
+            legend: [['Merged group', palette[0]], ['Current merge', '#111111'], ['Early hierarchy', '#c7c2ba']]
+          },
+          graph: {
+            name: 'Graph communities', subtitle: 'Clusters points by local agreement on a neighbour graph.',
+            principle: 'Build a nearest-neighbour graph. Repeatedly update each point’s label from the labels of its neighbours. Stable connected regions of shared labels are displayed as communities.',
+            labels: ['step', 'changed', 'communities'],
+            legend: [['Community label', palette[0]], ['Neighbour graph', '#b9b9b0'], ['Changed point', '#111111']]
+          }
+        }[method];
+      }
+
+      function updateText() {
+        const p = params(); const info = methodInfo(p.method); const dataName = els.dataset.options[els.dataset.selectedIndex].text;
+        els.stageTitle.textContent = `${info.name} on ${dataName.toLowerCase()}`;
+        els.stageSubtitle.textContent = info.subtitle;
+        els.methodName.textContent = info.name;
+        els.principle.textContent = info.principle;
+        els.stepText.textContent = algo.message;
+        els.metricALabel.textContent = info.labels[0]; els.metricBLabel.textContent = info.labels[1]; els.metricCLabel.textContent = info.labels[2];
+        const m = algo.metrics(); els.metricA.textContent = m.a; els.metricB.textContent = m.b; els.metricC.textContent = m.c;
+        renderLegend(info.legend);
+      }
+
+      function renderLegend(items) {
+        els.legend.innerHTML = '';
+        for (const [label, color] of items) {
+          const div = document.createElement('div'); div.className = 'legend-item';
+          const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = color;
+          div.appendChild(sw); div.appendChild(document.createTextNode(label)); els.legend.appendChild(div);
+        }
+      }
+
+      function updateControlVisibility() {
+        const method = els.method.value;
+        document.querySelectorAll('.param').forEach(el => el.classList.add('hidden'));
+        if (['kmeans','kmedoids','fuzzy','gmm','graph'].includes(method)) document.querySelectorAll('.param-k').forEach(el => el.classList.remove('hidden'));
+        if (method === 'fuzzy') document.querySelectorAll('.param-fuzzy').forEach(el => el.classList.remove('hidden'));
+        if (method === 'dbscan') document.querySelectorAll('.param-dbscan').forEach(el => el.classList.remove('hidden'));
+        if (method === 'hdbscan') document.querySelectorAll('.param-hdbscan').forEach(el => el.classList.remove('hidden'));
+        if (method === 'meanshift') document.querySelectorAll('.param-meanshift').forEach(el => el.classList.remove('hidden'));
+        if (method === 'agglo') document.querySelectorAll('.param-agglo').forEach(el => el.classList.remove('hidden'));
+        if (method === 'graph') document.querySelectorAll('.param-graph').forEach(el => el.classList.remove('hidden'));
+        els.softDisplay.disabled = !['gmm','fuzzy'].includes(method);
+        if (!['gmm','fuzzy'].includes(method)) els.softDisplay.checked = false;
+      }
+
+      function updateOutputs() {
+        els.nPointsOut.value = els.nPoints.value;
+        els.noiseOut.value = parseFloat(els.noise.value).toFixed(2);
+        els.spreadOut.value = parseFloat(els.spread.value).toFixed(2);
+        els.kOut.value = els.k.value;
+        els.fuzzinessOut.value = parseFloat(els.fuzziness.value).toFixed(2);
+        els.epsOut.value = parseFloat(els.eps.value).toFixed(2);
+        els.minPtsOut.value = els.minPts.value;
+        els.minClusterSizeOut.value = els.minClusterSize.value;
+        els.bandwidthOut.value = parseFloat(els.bandwidth.value).toFixed(2);
+        els.targetClustersOut.value = els.targetClusters.value;
+        els.neighborsOut.value = els.neighbors.value;
+      }
+
+      function resetAlgorithm() {
+        setRunning(false);
+        const p = params(); updateOutputs(); updateControlVisibility();
+        if (p.method === 'kmeans') algo = new KMeans(points, p.k, p.seed);
+        if (p.method === 'kmedoids') algo = new KMedoids(points, p.k, p.seed);
+        if (p.method === 'fuzzy') algo = new FuzzyCMeans(points, p.k, p.fuzziness, p.seed);
+        if (p.method === 'gmm') algo = new GMM(points, p.k, p.seed);
+        if (p.method === 'dbscan') algo = new DBSCAN(points, p.eps, p.minPts);
+        if (p.method === 'hdbscan') algo = new HDBSCANStyle(points, p.minPts, p.minClusterSize);
+        if (p.method === 'meanshift') algo = new MeanShift(points, p.bandwidth);
+        if (p.method === 'agglo') algo = new Agglomerative(points, p.linkage, p.targetClusters);
+        if (p.method === 'graph') algo = new GraphCommunities(points, p.k, p.neighbors, p.seed);
+        draw();
+      }
+
+      function regenerateData() {
+        setRunning(false);
+        points = generateData(); computeView(); resetAlgorithm();
+      }
+
+      function stepAlgorithm(fromRun = false) {
+        if (!algo) return;
+        if (algo.converged) { setRunning(false); draw(); return; }
+        algo.step();
+        if (fromRun && algo.converged) setRunning(false);
+        draw();
+      }
+
+      function frame(t) {
+        const speed = parseInt(els.speed.value, 10);
+        const interval = 820 - speed * 7.0;
+        if (running && t - lastTick > interval) { stepAlgorithm(true); lastTick = t; }
+        requestAnimationFrame(frame);
+      }
+
+      els.runBtn.addEventListener('click', () => {
+        if (algo && algo.converged) resetAlgorithm();
+        else setRunning(!running);
+      });
+      els.stepBtn.addEventListener('click', () => stepAlgorithm(false));
+      els.resetAlgoBtn.addEventListener('click', resetAlgorithm);
+      els.newDataBtn.addEventListener('click', () => { els.seed.value = (parseInt(els.seed.value, 10) || 42) + 1; regenerateData(); });
+      ['dataset','nPoints','noise','spread','seed'].forEach(id => els[id].addEventListener('input', regenerateData));
+      ['method','k','fuzziness','eps','minPts','minClusterSize','bandwidth','linkage','targetClusters','neighbors'].forEach(id => els[id].addEventListener('input', resetAlgorithm));
+      ['mechanics','softDisplay'].forEach(id => els[id].addEventListener('change', draw));
+      els.speed.addEventListener('input', updateOutputs);
+      window.addEventListener('resize', resizeCanvas);
+
+      updateOutputs(); updateControlVisibility(); regenerateData(); resizeCanvas(); requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
