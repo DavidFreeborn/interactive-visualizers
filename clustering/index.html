@@ -538,16 +538,6 @@
               <input id="neighbors" type="range" min="3" max="22" value="8" step="1" />
             </div>
 
-            <div class="field full">
-              <div class="checkbox-row">
-                <input id="mechanics" type="checkbox" checked />
-                <span>Show method mechanics</span>
-              </div>
-              <div class="checkbox-row">
-                <input id="softDisplay" type="checkbox" />
-                <span>Show weak membership where available</span>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -614,8 +604,6 @@
         targetClustersOut: document.getElementById('targetClustersOut'),
         neighbors: document.getElementById('neighbors'),
         neighborsOut: document.getElementById('neighborsOut'),
-        mechanics: document.getElementById('mechanics'),
-        softDisplay: document.getElementById('softDisplay'),
         methodName: document.getElementById('methodName'),
         principle: document.getElementById('principle'),
         stepLabel: document.getElementById('stepLabel'),
@@ -682,8 +670,8 @@
           linkage: els.linkage.value,
           targetClusters: parseInt(els.targetClusters.value, 10),
           neighbors: parseInt(els.neighbors.value, 10),
-          mechanics: els.mechanics.checked,
-          soft: els.softDisplay.checked
+          mechanics: true,
+          soft: false
         };
       }
 
@@ -1873,8 +1861,6 @@
         if (method === 'meanshift') document.querySelectorAll('.param-meanshift').forEach(el => el.classList.remove('hidden'));
         if (method === 'agglo') document.querySelectorAll('.param-agglo').forEach(el => el.classList.remove('hidden'));
         if (method === 'graph') document.querySelectorAll('.param-graph').forEach(el => el.classList.remove('hidden'));
-        els.softDisplay.disabled = !['gmm','fuzzy'].includes(method);
-        if (!['gmm','fuzzy'].includes(method)) els.softDisplay.checked = false;
       }
 
       function updateOutputs() {
@@ -1935,7 +1921,6 @@
       els.newDataBtn.addEventListener('click', () => { els.seed.value = (parseInt(els.seed.value, 10) || 42) + 1; regenerateData(); });
       ['dataset','nPoints','noise','spread','seed'].forEach(id => els[id].addEventListener('input', regenerateData));
       ['method','k','fuzziness','eps','minPts','minClusterSize','bandwidth','linkage','targetClusters','neighbors'].forEach(id => els[id].addEventListener('input', resetAlgorithm));
-      ['mechanics','softDisplay'].forEach(id => els[id].addEventListener('change', draw));
       els.speed.addEventListener('input', updateOutputs);
       window.addEventListener('resize', resizeCanvas);
 
