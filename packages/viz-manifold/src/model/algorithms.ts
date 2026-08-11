@@ -213,19 +213,223 @@ export function isomap(
 }
 
 /**
+ * t-SNE (t-distributed Stochastic Neighbor Embedding).
+ *
+ * Simplified educational implementation.
+ * Preserves local neighborhood structure using probabilistic similarities.
+ *
+ * @param points Data points (original coordinates)
+ * @param targetDim Target dimension
+ * @param perplexity Effective number of neighbors (typical: 5-50)
+ * @returns Embedding result
+ */
+export function tsne(
+  points: DataPoint[],
+  targetDim: number,
+  perplexity: number
+): EmbeddingResult {
+  const originals = points.map((p) => p.original);
+  const n = originals.length;
+
+  if (n === 0) {
+    return {
+      embedded: [],
+      explainedVariance: [],
+      neighborGraph: [],
+      geodesicDistances: null,
+    };
+  }
+
+  // Compute pairwise distances
+  const D: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    D[i] = [];
+    for (let j = 0; j < n; j++) {
+      D[i][j] = euclideanDistance(originals[i], originals[j]);
+    }
+  }
+
+  // Compute affinities with binary search for sigma
+  const P = computeAffinities(D, perplexity);
+
+  // Initialize embedding with PCA
+  const pcaResult = pca(points, targetDim);
+  const Y = pcaResult.embedded.map((row) => [...row]);
+
+  // Gradient descent optimization (simplified)
+  const learningRate = 100;
+  const momentum = 0.5;
+  const iterations = 300;
+
+  // Velocity for momentum
+  const dY: number[][] = Y.map(() => new Array(targetDim).fill(0));
+
+  for (let iter = 0; iter < iterations; iter++) {
+    // Compute Q (low-dimensional affinities using t-distribution)
+    const Q = computeStudentT(Y);
+
+    // Compute gradients
+    for (let i = 0; i < n; i++) {
+      for (let d = 0; d < targetDim; d++) {
+        let grad = 0;
+        for (let j = 0; j < n; j++) {
+          if (i !== j) {
+            const pij = P[i][j];
+            const qij = Q[i][j];
+            const diff = Y[i][d] - Y[j][d];
+            const dist = euclideanDistance(Y[i], Y[j]);
+            const factor = 1 / (1 + dist * dist);
+            grad += 4 * (pij - qij) * diff * factor;
+          }
+        }
+        dY[i][d] = momentum * dY[i][d] - learningRate * grad;
+        Y[i][d] += dY[i][d];
+      }
+    }
+
+    // Center the solution
+    for (let d = 0; d < targetDim; d++) {
+      let mean = 0;
+      for (let i = 0; i < n; i++) {
+        mean += Y[i][d];
+      }
+      mean /= n;
+      for (let i = 0; i < n; i++) {
+        Y[i][d] -= mean;
+      }
+    }
+  }
+
+  return {
+    embedded: Y,
+    explainedVariance: [],
+    neighborGraph: buildKNNGraph(originals, Math.round(perplexity)),
+    geodesicDistances: null,
+  };
+}
+
+/**
+ * Compute affinities P with binary search for sigma to match perplexity.
+ */
+function computeAffinities(D: number[][], perplexity: number): number[][] {
+  const n = D.length;
+  const P: number[][] = [];
+
+  for (let i = 0; i < n; i++) {
+    P[i] = new Array(n).fill(0);
+
+    // Binary search for sigma
+    let sigma = 1;
+    let sigmaLow = 0;
+    let sigmaHigh = Infinity;
+    const targetEntropy = Math.log(perplexity);
+
+    for (let iter = 0; iter < 50; iter++) {
+      // Compute probabilities
+      let sumP = 0;
+      for (let j = 0; j < n; j++) {
+        if (i !== j) {
+          P[i][j] = Math.exp((-D[i][j] * D[i][j]) / (2 * sigma * sigma));
+          sumP += P[i][j];
+        }
+      }
+
+      // Normalize
+      if (sumP > 0) {
+        for (let j = 0; j < n; j++) {
+          P[i][j] /= sumP;
+        }
+      }
+
+      // Compute entropy
+      let entropy = 0;
+      for (let j = 0; j < n; j++) {
+        if (P[i][j] > 1e-10) {
+          entropy -= P[i][j] * Math.log(P[i][j]);
+        }
+      }
+
+      // Adjust sigma
+      if (Math.abs(entropy - targetEntropy) < 0.01) {
+        break;
+      }
+      if (entropy > targetEntropy) {
+        sigmaHigh = sigma;
+        sigma = (sigma + sigmaLow) / 2;
+      } else {
+        sigmaLow = sigma;
+        if (sigmaHigh === Infinity) {
+          sigma *= 2;
+        } else {
+          sigma = (sigma + sigmaHigh) / 2;
+        }
+      }
+    }
+  }
+
+  // Symmetrize
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const pij = (P[i][j] + P[j][i]) / (2 * n);
+      P[i][j] = pij;
+      P[j][i] = pij;
+    }
+  }
+
+  return P;
+}
+
+/**
+ * Compute Q using Student-t distribution (1 degree of freedom).
+ */
+function computeStudentT(Y: number[][]): number[][] {
+  const n = Y.length;
+  const Q: number[][] = [];
+  let sumQ = 0;
+
+  // Compute unnormalized Q
+  for (let i = 0; i < n; i++) {
+    Q[i] = [];
+    for (let j = 0; j < n; j++) {
+      if (i !== j) {
+        const dist = euclideanDistance(Y[i], Y[j]);
+        Q[i][j] = 1 / (1 + dist * dist);
+        sumQ += Q[i][j];
+      } else {
+        Q[i][j] = 0;
+      }
+    }
+  }
+
+  // Normalize
+  if (sumQ > 0) {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        Q[i][j] /= sumQ;
+      }
+    }
+  }
+
+  return Q;
+}
+
+/**
  * Runs the specified algorithm.
  */
 export function runAlgorithm(
   algorithm: AlgorithmType,
   points: DataPoint[],
   targetDim: number,
-  k: number
+  k: number,
+  perplexity: number = 30
 ): EmbeddingResult {
   switch (algorithm) {
     case 'pca':
       return pca(points, targetDim);
     case 'isomap':
       return isomap(points, targetDim, k);
+    case 'tsne':
+      return tsne(points, targetDim, perplexity);
     default:
       return pca(points, targetDim);
   }

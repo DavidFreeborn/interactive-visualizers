@@ -169,3 +169,40 @@ export type {
 } from "./model/compositionalInformationPreservingGeneralist";
 export type { SignalingGameViewProps } from "./ui/components/SignalingGameView";
 export type { CompositionalTraditionalViewProps } from "./ui/compositionalTraditional/CompositionalTraditionalView";
+export { EnglishTownGeneratorApp } from './town/ui/EnglishTownGeneratorApp';
+export type { EnglishTownGeneratorAppProps } from './town/ui/EnglishTownGeneratorApp';
+export { generateEnglishTownRegion, TOWN_MODEL_VERSION } from './town/generateTown';
+export {
+  DEFAULT_TOWN_GENERATOR_CONFIG,
+  resolveTownGeneratorConfig,
+  validateTownGeneratorConfig,
+} from './town/config';
+export { ENGLISH_REGION_OPTIONS, REGION_PROFILES } from './town/regionalProfiles';
+export type {
+  BoundaryConditions,
+  Composition,
+  EdgeCharacter,
+  EnglishRegion,
+  EstimateInterval,
+  Facility,
+  GenerationDiagnostics,
+  GeologyUnit,
+  GeneratedTownRegion,
+  HistoricalEvent,
+  LocalStreet,
+  LocalStreetPattern,
+  MapLens,
+  ModelSource,
+  PopulationBand,
+  RailLine,
+  RegionSummary,
+  RiverSpecification,
+  RoadLink,
+  Settlement,
+  TerrainCell,
+  TownCell,
+  TownGeneratorConfig,
+  TownGeneratorConfigInput,
+  Ward,
+  WardMetrics,
+} from './town/types';

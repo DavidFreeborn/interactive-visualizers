@@ -12,7 +12,7 @@ export type DatasetType = 'swiss-roll' | 's-curve' | 'circles';
 /**
  * Available dimensionality reduction algorithms.
  */
-export type AlgorithmType = 'pca' | 'isomap';
+export type AlgorithmType = 'pca' | 'isomap' | 'tsne';
 
 /**
  * Configuration for the manifold learning visualizer.
@@ -35,6 +35,9 @@ export interface ManifoldConfig {
 
   /** Target embedding dimension (2 or 3) */
   targetDim: number;
+
+  /** Perplexity for t-SNE (effective number of neighbors) */
+  perplexity: number;
 
   /** Random seed for reproducibility */
   seed: number;

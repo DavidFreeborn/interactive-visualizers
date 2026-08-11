@@ -20,11 +20,12 @@ import { computeMetrics } from './metrics';
  */
 export const DEFAULT_CONFIG: ManifoldConfig = {
   dataset: 'swiss-roll',
-  numSamples: 500,
+  numSamples: 300,
   noise: 0.5,
   algorithm: 'isomap',
   numNeighbors: 12,
   targetDim: 2,
+  perplexity: 30,
   seed: 12345,
 };
 
@@ -83,7 +84,8 @@ export function runEmbedding(
     config.algorithm,
     state.points,
     config.targetDim,
-    config.numNeighbors
+    config.numNeighbors,
+    config.perplexity
   );
 
   // Update points with embedded coordinates
@@ -139,7 +141,8 @@ export class ManifoldModel {
       this.config.algorithm,
       state.points,
       this.config.targetDim,
-      this.config.numNeighbors
+      this.config.numNeighbors,
+      this.config.perplexity
     );
 
     return computeMetrics(

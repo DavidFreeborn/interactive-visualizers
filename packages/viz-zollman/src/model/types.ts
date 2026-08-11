@@ -7,7 +7,13 @@
 /**
  * Network topology types.
  */
-export type TopologyType = 'cycle' | 'complete';
+export type TopologyType =
+  | 'cycle'
+  | 'complete'
+  | 'star'
+  | 'er-random'
+  | 'ba-scale-free'
+  | 'ws-small-world';
 
 /**
  * Configuration for the Zollman simulation.

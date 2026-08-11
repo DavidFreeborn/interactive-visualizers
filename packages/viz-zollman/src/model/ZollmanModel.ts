@@ -66,12 +66,15 @@ export function createInitialAgents(config: ZollmanConfig): ZollmanAgent[] {
 /**
  * Creates initial state.
  */
-export function createInitialState(config: ZollmanConfig): ZollmanState {
+export function createInitialState(
+  config: ZollmanConfig,
+  rng?: SeededRandom
+): ZollmanState {
   return {
     round: 0,
     agents: createInitialAgents(config),
     beliefHistory: [config.priorBelief],
-    neighbors: createNetwork(config.topology, config.numAgents),
+    neighbors: createNetwork(config.topology, config.numAgents, rng),
   };
 }
 
@@ -279,8 +282,8 @@ export class ZollmanModel {
     }
   }
 
-  createInitialState(): ZollmanState {
-    return createInitialState(this.config);
+  createInitialState(rng?: SeededRandom): ZollmanState {
+    return createInitialState(this.config, rng);
   }
 
   step(state: ZollmanState, rng: SeededRandom): ZollmanState {

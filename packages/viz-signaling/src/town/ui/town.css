@@ -1,0 +1,107 @@
+.town-generator {
+  --town-ink:#202326; --town-muted:#646a70; --town-line:#d5d4cf;
+  --town-paper:#fbfaf7; --town-soft:#f1f0eb; --town-accent:#495f63;
+  color:var(--town-ink); background:var(--town-paper);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px; max-width:1560px; margin:0 auto; padding:24px;
+}
+.town-generator *,.town-generator *::before,.town-generator *::after{box-sizing:border-box}
+.town-generator h1,.town-generator h2,.town-generator h3,.town-generator p{margin-top:0}
+.town-header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:20px}
+.town-kicker{display:block;color:var(--town-accent);font-size:14px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.town-header h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(32px,5vw,52px);line-height:1;font-weight:500;margin-bottom:8px}
+.town-header p{color:var(--town-muted);margin-bottom:0}
+.town-status{border-left:3px solid var(--town-accent);padding:5px 0 5px 12px;display:grid;gap:2px;min-width:230px}
+.town-status strong{font-size:14px}.town-status span{color:var(--town-muted);font-size:14px}
+
+.town-controls{border:1px solid var(--town-line);background:#fff;padding:14px;margin-bottom:14px}
+.town-controls-summary{display:none;cursor:pointer;font-weight:700;min-height:44px;align-items:center}.town-controls-summary span{color:var(--town-muted);font-size:14px;font-weight:400}
+.town-controls-primary{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr)) auto;gap:10px;align-items:end}
+.town-controls-secondary{display:grid;grid-template-columns:minmax(420px,1.2fr) minmax(330px,.8fr) auto;align-items:end;gap:14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--town-line)}
+.town-controls fieldset{border:0;padding:0;margin:0;min-width:0}
+.town-controls legend,.town-field>span{color:var(--town-muted);font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.town-controls legend{margin-bottom:6px}.town-field{display:grid;gap:5px;min-width:0}
+.town-field select,.town-field input{width:100%;min-width:0;min-height:44px;border:1px solid #bfc1c0;border-radius:3px;background:#fff;color:var(--town-ink);padding:8px 9px;font:inherit;font-size:14px}
+.town-field select:focus,.town-field input:focus,.town-button:focus,.town-lenses button:focus{outline:2px solid #758f96;outline-offset:1px}
+.town-field.compact select{padding:7px 8px}.town-edge-grid{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:8px}
+.town-river-controls{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:end}
+.town-check{display:flex;align-items:center;gap:6px;min-height:44px;font-size:14px}
+.town-check input{width:20px;height:20px}
+.town-button{border:1px solid var(--town-accent);border-radius:3px;padding:9px 12px;min-height:44px;cursor:pointer;font:inherit;font-size:14px;font-weight:700;white-space:nowrap}
+.town-button.primary{color:#fff;background:var(--town-accent)}.town-button.secondary{color:var(--town-accent);background:#fff}
+.town-error{color:#8a342e;font-weight:700;font-size:14px;margin:10px 0 0}.town-draft-note{color:var(--town-accent);font-weight:700;font-size:14px;margin:10px 0 0}
+
+.town-lenses{display:grid;grid-template-columns:1fr 1.35fr 1.15fr;gap:14px;border-bottom:1px solid var(--town-line);padding:3px 0 12px;margin-bottom:14px}
+.town-lenses>div>span{display:block;color:var(--town-muted);font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.town-lenses>div>div{display:flex;flex-wrap:wrap;gap:4px}
+.town-lenses button{border:1px solid var(--town-line);background:transparent;color:var(--town-ink);padding:7px 9px;min-height:44px;border-radius:2px;font-size:14px;cursor:pointer}
+.town-lenses button[aria-pressed="true"]{background:var(--town-accent);color:#fff;border-color:var(--town-accent)}
+.town-main-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,390px);gap:18px;align-items:start}
+.town-map-column{min-width:0}.town-map-wrap{border:1px solid var(--town-line);background:#fff}
+.town-map-heading{display:flex;justify-content:space-between;gap:16px;align-items:center;min-height:55px;padding:9px 12px;border-bottom:1px solid var(--town-line)}
+.town-map-heading>div:first-child{display:grid;gap:2px}.town-map-heading strong{font-size:14px}
+.town-map-heading span{color:var(--town-muted);font-size:14px;max-width:760px}
+.town-gradient-legend{display:grid;grid-template-columns:auto 88px auto;gap:6px;align-items:center;white-space:nowrap}
+.town-gradient-legend i{display:block;height:7px;border:1px solid #c6c4bf}.town-gradient-legend i.is-discrete{background:none;border:0;display:flex;gap:2px}.town-gradient-legend i.is-discrete b{display:block;flex:1;border:1px solid rgba(40,43,44,.22)}
+.town-category-key,.town-facility-key{display:flex;flex-wrap:wrap;gap:5px 13px;padding:7px 12px;border-bottom:1px solid var(--town-line);color:var(--town-muted);font-size:14px}.town-category-key span,.town-facility-key span{display:inline-flex;align-items:center;gap:5px}.town-category-key i{width:13px;height:13px;border:1px solid rgba(40,43,44,.3)}.town-facility-key{border-top:1px solid var(--town-line);border-bottom:0}.town-facility-key b{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--town-line);border-radius:50%;color:var(--town-ink);font-size:14px}
+.town-map{display:block;width:100%;height:auto;background:#e8ecec}.town-cell{cursor:pointer;stroke:none}.town-cell:hover{filter:brightness(.91)}
+.town-local-street{fill:none;stroke:rgba(65,68,69,.48);stroke-width:.9;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;pointer-events:stroke}.town-local-street.historic-irregular{stroke-width:1.15}.town-local-street.terrace-grid{stroke:#5d6061}.town-local-street.post-war-distributor{stroke-dasharray:2 1}
+.town-river{fill:none;stroke:#759ead;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}.town-river.major{stroke-width:6}.town-river.tributary{stroke-width:2.5;opacity:.9}
+.town-road-casing,.town-road{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:stroke}.town-road-casing{stroke:rgba(255,255,255,.88)}.town-road{stroke:#6f7375}.town-road.motorway{stroke:#59656a}.town-road.b-road{opacity:.72}
+.town-rail{fill:none;stroke:#383d42;stroke-width:3;stroke-dasharray:9 4;pointer-events:stroke}
+.town-ward-boundaries{fill:none;stroke:rgba(48,51,53,.55);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+.town-selected-ward{fill:none;stroke:#171b1d;stroke-width:3;stroke-linecap:square;vector-effect:non-scaling-stroke;pointer-events:none}
+.town-facility circle{fill:#fff;stroke:#33383b;stroke-width:1.5;vector-effect:non-scaling-stroke}.town-facility text{text-anchor:middle;font-size:14px;font-weight:700;fill:#292d2f;pointer-events:none}
+.town-label circle{fill:#24282a;stroke:#fff;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.town-label text{font-size:18px;font-weight:700;paint-order:stroke;stroke:rgba(255,255,255,.94);stroke-width:3px;stroke-linejoin:round;fill:#24282a}.town-label.main text{font-size:26px}
+.town-scale path{stroke:#222729;stroke-width:2;fill:none;vector-effect:non-scaling-stroke}
+.town-scale text,.town-north-label{font-size:16px;font-weight:700;fill:#222729;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3px}.town-north-arrow{fill:#222729;stroke:rgba(255,255,255,.9);stroke-width:1}
+
+.town-summary-strip{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--town-line);border-top:0;background:#fff}
+.town-summary-strip>div{display:grid;gap:3px;padding:9px 10px;border-right:1px solid var(--town-line)}.town-summary-strip>div:last-child{border-right:0}
+.town-summary-strip span{color:var(--town-muted);font-size:14px;text-transform:uppercase;letter-spacing:.04em}.town-summary-strip strong{font-size:14px}
+
+.town-ward-panel{border:1px solid var(--town-line);background:#fff;padding:14px}.town-ward-title{border-bottom:1px solid var(--town-line);padding:14px 0 10px}
+.town-ward-title h2{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:500;margin-bottom:4px}.town-ward-title p{color:var(--town-muted);font-size:14px;margin-bottom:0;text-transform:capitalize}
+.town-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);margin:12px 0;border-top:1px solid var(--town-line);border-left:1px solid var(--town-line)}
+.town-stat-grid>div{display:grid;gap:2px;padding:8px;border-right:1px solid var(--town-line);border-bottom:1px solid var(--town-line)}
+.town-stat-grid span,.town-estimate span{color:var(--town-muted);font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}.town-stat-grid strong{font-size:14px}
+.town-estimate-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}.town-estimate{border-left:2px solid #87979a;background:var(--town-soft);padding:8px;display:grid;gap:2px;min-width:0}
+.town-estimate strong{font-size:15px}.town-estimate small{color:var(--town-muted);font-size:14px;line-height:1.35}
+.town-local-facilities{padding:10px 0;border-top:1px solid var(--town-line)}.town-local-facilities h3{font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.town-local-facilities ul{padding:0;margin:0;list-style:none;display:grid;gap:5px}.town-local-facilities li{display:flex;justify-content:space-between;gap:10px;font-size:14px}.town-local-facilities li span{color:var(--town-muted);text-align:right}
+.town-demography-warning{border-top:1px solid var(--town-line);padding:10px 0}.town-demography-warning strong{font-size:14px}.town-demography-warning p{color:var(--town-muted);font-size:14px;line-height:1.45;margin:4px 0 0}
+.town-ward-panel details{border-top:1px solid var(--town-line);padding:8px 0}.town-ward-panel summary,.town-evidence-grid summary{cursor:pointer;font-size:14px;font-weight:700;min-height:44px;display:flex;align-items:center}
+.town-composition{display:grid;gap:6px;padding:9px 0 2px}.town-composition-row{display:grid;grid-template-columns:minmax(115px,1fr) 1.2fr 48px;gap:6px;align-items:center;font-size:14px}
+.town-composition-row>div{height:5px;background:#e4e3de}.town-composition-row i{display:block;height:100%;background:#71888b}.town-composition-row strong{text-align:right}
+.town-ward-warning{background:#f2eee5;border-left:3px solid #9a8767;padding:9px;margin-top:8px}.town-ward-warning strong{font-size:14px;text-transform:uppercase;letter-spacing:.05em}.town-ward-warning p{font-size:14px;line-height:1.45;margin:3px 0 0}
+
+.town-evidence-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.town-evidence-grid>details{border:1px solid var(--town-line);background:#fff;padding:12px}
+.town-evidence-grid>details>p,.town-evidence-grid li{color:var(--town-ink);font-size:14px;line-height:1.55}.town-evidence-grid>details>p{margin:10px 0 0}.town-evidence-grid ul{margin:10px 0 0;padding-left:18px}
+.town-history{list-style:none;padding:8px 0 0;margin:0;display:grid;gap:9px}.town-history li{display:grid;grid-template-columns:48px 1fr;gap:9px}.town-history time{font-weight:700;color:var(--town-accent)}.town-history p{margin:2px 0 0}
+.town-settlement-table{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding-top:10px}.town-settlement-table>div{border-top:1px solid var(--town-line);padding-top:7px;display:grid;gap:2px}
+.town-settlement-table span,.town-settlement-table p{color:var(--town-muted);font-size:14px}.town-settlement-table p{margin:2px 0 0}
+.town-diagnostics{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font:14px ui-monospace,SFMono-Regular,Consolas,monospace}
+.town-sources{list-style:none;padding-left:0!important;display:grid;gap:8px}.town-sources li{display:grid;gap:2px}.town-sources a{color:var(--town-accent);font-weight:700}.town-sources span{color:var(--town-muted)}
+
+@media(max-width:1120px){
+  .town-controls-primary{grid-template-columns:repeat(3,1fr)}.town-controls-secondary{grid-template-columns:1fr 1fr}.town-controls-secondary .town-button{grid-column:1/-1}
+  .town-main-grid{grid-template-columns:minmax(0,1fr) 330px}.town-summary-strip{grid-template-columns:repeat(3,1fr)}.town-summary-strip>div:nth-child(3){border-right:0}.town-summary-strip>div:nth-child(-n+3){border-bottom:1px solid var(--town-line)}
+}
+@media(max-width:820px){
+  .town-generator{padding:14px}.town-header{display:grid}.town-status{min-width:0}
+  .town-controls-summary{display:flex;justify-content:space-between;gap:12px}.town-controls[open] .town-controls-summary{margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--town-line)}
+  .town-controls-primary,.town-controls-secondary,.town-lenses,.town-main-grid,.town-evidence-grid{grid-template-columns:1fr}.town-controls-secondary .town-button{grid-column:auto}
+  .town-map-heading{align-items:flex-start;flex-direction:column}.town-gradient-legend{width:100%;grid-template-columns:auto 1fr auto}.town-settlement-table{grid-template-columns:1fr}
+}
+@media(max-width:500px){
+  .town-controls-primary{grid-template-columns:1fr}.town-edge-grid{grid-template-columns:1fr 1fr}.town-river-controls{grid-template-columns:1fr 1fr}.town-river-controls .town-check{grid-column:1/-1}
+  .town-summary-strip{grid-template-columns:1fr 1fr}.town-summary-strip>div{border-bottom:1px solid var(--town-line)}.town-summary-strip>div:nth-child(2n){border-right:0}
+  .town-stat-grid{grid-template-columns:1fr 1fr}.town-estimate-grid{grid-template-columns:1fr}
+  .town-label:not(.main),.town-facility text{display:none}
+}
+@media(prefers-color-scheme:dark){
+  .town-generator{--town-ink:#ecebe6;--town-muted:#b9b9b4;--town-line:#4c4e4d;--town-paper:#242729;--town-soft:#303436;--town-accent:#9ab0b3}
+  .town-controls,.town-map-wrap,.town-summary-strip,.town-ward-panel,.town-evidence-grid>details{background:#2a2d2f}
+  .town-field select,.town-field input,.town-button.secondary{background:#242729;color:var(--town-ink);border-color:#626563}.town-button.primary,.town-lenses button[aria-pressed="true"]{color:#1e2223}.town-gradient-legend i{border-color:#656761}.town-ward-warning{background:#3a352c}.town-local-street{stroke:rgba(230,230,224,.38)}.town-road-casing{stroke:rgba(32,34,35,.82)}.town-ward-boundaries{stroke:rgba(245,245,240,.55)}
+}

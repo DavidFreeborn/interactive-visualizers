@@ -2,10 +2,11 @@
 
 This package contains the signaling-game work for the interactive visualizers project.
 
-It currently includes two public apps:
+It currently includes three public apps:
 
 - Classic signaling games: a one-sender Lewis-Skyrms baseline with deterministic seeded simulation, exact reinforcement updates, exact information metrics, and an interactive diagram.
 - Compositional signaling games: the fixed `4x(2+2)x4` app with Traditional, Minimalist, Information-Erasing Generalist, and Information-Preserving Generalist receivers, shared playback, and the public forgetting experiment.
+- Synthetic English town-region: a seeded, research-grounded generator coupling physical geography, settlements, historical transport, urban form, strategic peak travel, analytical wards, demographics and environmental lenses. See [the methodology and validation document](./TOWN_GENERATOR_METHODOLOGY.md).
 
 ## References
 
@@ -15,7 +16,7 @@ It currently includes two public apps:
 
 ## Architecture
 
-The package keeps the same split across both apps:
+The signaling apps retain their established split:
 
 - `src/model`: pure model logic and metrics
 - `src/sim`: deterministic runners
@@ -23,6 +24,8 @@ The package keeps the same split across both apps:
 - `src/apps`: package entry apps used by the showcase
 
 The classic and compositional models share utilities where appropriate, but remain separate model families.
+
+The town generator is isolated under `src/town`: pure staged model modules, public types, provenance, tests and its React interface. It is exported from the package without changing the signaling models.
 
 ## Running
 
@@ -32,7 +35,11 @@ From the repo root:
 npm run dev
 ```
 
-Then open the showcase app and choose `Signaling Games`.
+Then open the showcase app and choose the required visualizer. The town generator is also available directly at:
+
+```text
+http://localhost:5173/#english-town-generator
+```
 
 ## Tests
 
@@ -49,6 +56,8 @@ The signaling package includes:
 - deterministic runner tests
 - jsdom UI tests
 - stochastic regression checks
+- deterministic town-model invariant tests
+- town-generator jsdom interaction tests
 
 ## Calibration
 
@@ -69,6 +78,7 @@ src/
   apps/
   model/
   sim/
+  town/
   ui/
 scripts/
 calibration/

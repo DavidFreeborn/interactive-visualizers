@@ -15,7 +15,7 @@ export class ZollmanSimulation {
     const fullConfig = { ...DEFAULT_CONFIG, ...config };
     this.model = new ZollmanModel(fullConfig);
     this.rng = new SeededRandom(fullConfig.seed);
-    this.state = this.model.createInitialState();
+    this.state = this.model.createInitialState(this.rng);
   }
 
   getConfig(): ZollmanConfig {
@@ -42,20 +42,20 @@ export class ZollmanSimulation {
 
   reset(): void {
     this.rng = new SeededRandom(this.model.config.seed);
-    this.state = this.model.createInitialState();
+    this.state = this.model.createInitialState(this.rng);
   }
 
   resetWithSeed(seed: number): void {
     const newConfig = { ...this.model.config, seed };
     this.model = new ZollmanModel(newConfig);
     this.rng = new SeededRandom(seed);
-    this.state = this.model.createInitialState();
+    this.state = this.model.createInitialState(this.rng);
   }
 
   resetWithConfig(config: Partial<ZollmanConfig>): void {
     const newConfig = { ...this.model.config, ...config };
     this.model = new ZollmanModel(newConfig);
     this.rng = new SeededRandom(newConfig.seed);
-    this.state = this.model.createInitialState();
+    this.state = this.model.createInitialState(this.rng);
   }
 }

@@ -6,17 +6,21 @@ import React, { useEffect, useState } from 'react';
 import {
   ClassicSignalingGamesApp,
   CompositionalSignalingGamesApp,
+  EnglishTownGeneratorApp,
 } from '@viz/signaling';
 import { ManifoldView } from '@viz/manifold';
 import { PolarizationView } from '@viz/polarization';
 import { ZollmanView } from '@viz/zollman';
+import { DotsView } from '@viz/dots';
 
 type VisualizerKey =
   | 'classic-signaling'
   | 'compositional-signaling'
+  | 'english-town-generator'
   | 'manifold'
   | 'polarization'
-  | 'zollman';
+  | 'zollman'
+  | 'moving-dots';
 
 interface VisualizerInfo {
   key: VisualizerKey;
@@ -29,9 +33,11 @@ function isVisualizerKey(value: string): value is VisualizerKey {
   return (
     value === 'classic-signaling' ||
     value === 'compositional-signaling' ||
+    value === 'english-town-generator' ||
     value === 'manifold' ||
     value === 'polarization' ||
-    value === 'zollman'
+    value === 'zollman' ||
+    value === 'moving-dots'
   );
 }
 
@@ -67,6 +73,12 @@ const VISUALIZERS: VisualizerInfo[] = [
     status: 'Phase 2',
   },
   {
+    key: 'english-town-generator',
+    name: 'Synthetic English town-region',
+    description: 'Research-grounded physical geography, settlement history, transport, urban form and analytical wards',
+    status: 'Standard toy model',
+  },
+  {
     key: 'manifold',
     name: 'Manifold Learning',
     description: 'Dimensionality reduction with PCA and Isomap',
@@ -83,6 +95,12 @@ const VISUALIZERS: VisualizerInfo[] = [
     name: 'Zollman Effect',
     description: 'Network epistemology and convergence dynamics',
     status: 'Standard toy model',
+  },
+  {
+    key: 'moving-dots',
+    name: 'Moving Dots',
+    description: 'Emergent behavior: Boids, Friends & Enemies, Particle Life, Swarmalators',
+    status: 'Conceptual analogy',
   },
 ];
 
@@ -143,7 +161,7 @@ export const App: React.FC = () => {
         </div>
 
         <footer style={styles.footer}>
-          <p>5 visualizers implemented. Select one above to begin.</p>
+          <p>7 visualizers implemented. Select one above to begin.</p>
         </footer>
       </div>
     );
@@ -163,9 +181,11 @@ export const App: React.FC = () => {
       <div style={styles.vizWrapper}>
         {activeViz === 'classic-signaling' && <ClassicSignalingGamesApp />}
         {activeViz === 'compositional-signaling' && <CompositionalSignalingGamesApp />}
+        {activeViz === 'english-town-generator' && <EnglishTownGeneratorApp />}
         {activeViz === 'manifold' && <ManifoldView />}
         {activeViz === 'polarization' && <PolarizationView />}
         {activeViz === 'zollman' && <ZollmanView />}
+        {activeViz === 'moving-dots' && <DotsView />}
       </div>
     </div>
   );

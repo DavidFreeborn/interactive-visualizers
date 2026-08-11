@@ -1,128 +1,153 @@
 /**
- * Content and explanatory text for the Factionalization & Polarization visualizer.
- *
- * Scientific Status: Standard toy model
+ * Content for the Factionalization & Polarization visualizer.
+ * Refined for clarity and pedagogical effectiveness.
  */
 
 export const CONTENT = {
-  scientificStatus: 'Standard toy model',
-
-  title: 'Factionalization & Polarization',
-
-  description:
-    'Demonstrates how rational Bayesian agents can polarize and factionalize when updating on the same evidence, due to network structure.',
+  title: 'When Rationality Divides',
+  subtitle: 'How perfectly rational agents can disagree more after seeing the same evidence',
 
   /**
-   * Key Concepts Section - Explaining the distinction between polarization and factionalization
+   * Intuitive explainer sections
+   */
+  explainer: {
+    whatIsThis: {
+      heading: 'What is this?',
+      text: `Imagine two doctors examining the same patient symptoms. One suspects Disease H, the other thinks it might be Condition S. After running a test, they disagree more than before—even though they both updated their beliefs rationally.
+
+This visualizer shows how the structure of causal relationships can make rational agents polarize. When two causes both explain the same effect ("explaining away"), agents with different background beliefs can reach opposite conclusions from identical evidence.`,
+    },
+
+    coreIdea: {
+      heading: 'The core idea',
+      text: `In a "collider" network (H → D ← S), evidence D could be caused by either H or S. If you already believe S is likely, observing D doesn't increase your belief in H much—you "explain away" D using S. But someone who doubts S will attribute D to H instead.
+
+Same evidence. Same Bayesian reasoning. Opposite conclusions. This isn't irrationality—it's rational updating from different starting points in a world with multiple possible causes.`,
+    },
+
+    whyMatters: {
+      heading: 'Why does this matter?',
+      text: `This challenges the naive view that sharing more information leads to consensus. If people have different background beliefs about alternative explanations, showing them the same evidence can make them diverge further.
+
+Understanding this mechanism helps explain why debates (climate, vaccines, politics) sometimes become more polarized despite more data being available—and why "just show them the facts" often fails.`,
+    },
+
+    howToRead: {
+      heading: 'How to read this visualization',
+      text: `• **Belief space** (large): Each dot is an agent. Position shows belief in H (horizontal) and S (vertical). Watch trajectories as evidence is observed.
+• **Network diagram** (small): Shows causal structure. Arrows indicate causation. D is the observed evidence.
+• **Variance**: Higher = more disagreement. Watch it increase (polarization) or decrease (convergence).
+• **Case labels**: Convergent (beliefs approach), Divergent (beliefs separate), Co-directional (both move same way).`,
+    },
+  },
+
+  /**
+   * Key concepts for reference
    */
   keyConcepts: {
     polarization: {
       term: 'Polarization',
-      definition:
-        'Increase in belief dispersion on a single proposition. Agents move further apart in their beliefs about H (the hypothesis). Measured by variance in beliefs.',
-      example: 'Agent A becomes more confident H is true, while Agent B becomes more confident H is false.',
+      short: 'Beliefs move further apart',
+      detail: 'Variance in beliefs increases. Agents disagree more after evidence.',
     },
     factionalization: {
       term: 'Factionalization',
-      definition:
-        'Formation of distinct clusters where beliefs across multiple propositions become correlated. Groups emerge with internally consistent belief packages.',
-      example: 'Agents split into two groups: one believing both H and S, another believing neither.',
+      short: 'Clusters form with correlated beliefs',
+      detail: 'Groups emerge where believing H correlates with believing S.',
     },
     explainingAway: {
-      term: 'Explaining Away Effect',
-      definition:
-        'When two causes (H and S) both explain an effect (D), evidence for one cause reduces belief in the other. In a collider network (H -> D <- S), observing D makes H and S conditionally dependent, so an agent who believes S is high will attribute less of D to H.',
-      example:
-        'If a patient has symptoms (D) that could be caused by disease H or condition S, learning the patient has S reduces belief in H.',
-    },
-    whyDivergence: {
-      term: 'Why Divergence Occurs',
-      definition:
-        'Agents with different prior beliefs about the exogenous cause (S) will update differently on the same evidence (D). One agent explains away H using S; another does not. Same evidence, rational updating, opposite conclusions.',
+      term: 'Explaining Away',
+      short: 'One cause reduces belief in another',
+      detail: 'If D could be caused by H or S, evidence for S makes H seem less necessary.',
     },
   },
 
-  whatThisShows: [
-    'How Bayesian agents with different priors can diverge when updating on shared evidence',
-    'The difference between chain and collider network structures',
-    'The "explaining away" effect in collider networks',
-    'That polarization can arise from rationality, not irrationality',
-    'The eight updating cases (convergent/divergent, co-directional, cisvergent)',
-    'The distinction between polarization (belief dispersion) and factionalization (cluster formation)',
+  /**
+   * Network type descriptions
+   */
+  networks: {
+    chain: {
+      name: 'Chain',
+      structure: 'H → S → D',
+      description: 'H causes S, which causes D. Evidence about D updates belief in S, then in H. Typically leads to convergence.',
+      expectation: 'Agents tend to agree more after evidence.',
+    },
+    collider: {
+      name: 'Collider',
+      structure: 'H → D ← S',
+      description: 'Both H and S cause D. Observing D creates conditional dependence between H and S. Enables explaining away.',
+      expectation: 'Agents can diverge—explaining away creates polarization.',
+    },
+  },
+
+  /**
+   * Scenarios for guided exploration
+   */
+  scenarios: [
+    {
+      id: 'collider-polarization',
+      name: 'Classic polarization',
+      description: 'Two agents with different S beliefs diverge on H after seeing D.',
+      config: {
+        networkType: 'collider' as const,
+        numAgents: 2,
+        seed: 42,
+      },
+    },
+    {
+      id: 'chain-convergence',
+      name: 'Chain convergence',
+      description: 'Same agents in a chain network converge instead.',
+      config: {
+        networkType: 'chain' as const,
+        numAgents: 2,
+        seed: 42,
+      },
+    },
+    {
+      id: 'multiple-agents',
+      name: 'Population dynamics',
+      description: 'Watch 8 agents form factions over time.',
+      config: {
+        networkType: 'collider' as const,
+        numAgents: 8,
+        numTimesteps: 20,
+        seed: 123,
+      },
+    },
   ],
 
-  whatThisDoesNotShow: {
-    notRealWorld: {
-      title: 'This is a highly simplified model',
-      points: [
-        'Real social networks have thousands of nodes and complex structures.',
-        'Real beliefs are not binary or simple probabilities.',
-        'Real evidence is not cleanly observed by all agents.',
-      ],
-    },
-    noIrrationality: {
-      title: 'Irrationality is not modeled',
-      points: [
-        'No confirmation bias or motivated reasoning.',
-        'No trust dynamics or source credibility.',
-        'No memory limitations or bounded rationality.',
-        'Agents are perfect Bayesian updaters.',
-      ],
-    },
-    simplifiedNetwork: {
-      title: 'Networks are highly simplified',
-      points: [
-        'Only 2-3 node networks are shown.',
-        'No complex conditional dependencies.',
-        'No latent variables or unobserved causes.',
-      ],
-    },
-    doNotInfer: {
-      title: 'Do NOT infer',
-      points: [
-        'That all real-world polarization is "rational" in this sense.',
-        'That network structure is the only cause of polarization.',
-        'That these toy models explain actual political polarization.',
-        'That Bayesian updating describes actual human reasoning.',
-      ],
-    },
-  },
-
-  source: {
-    paper: 'Factionalization, Polarization, and Bayesian Networks',
-    author: 'Various (based on Jern et al., Bovens & Hartmann)',
-    note: 'Standard toy model demonstrating structural conditions for belief divergence.',
-  },
-
+  /**
+   * Metric explanations
+   */
   metrics: {
     variance: {
       name: 'Variance',
-      description: 'Spread of H beliefs across agents. Higher = more polarized.',
-      unit: '',
-    },
-    updatingCase: {
-      name: 'Updating Case',
-      description:
-        'One of 8 cases based on convergent/divergent, co-directional, cisvergent.',
-      unit: '',
+      short: 'How spread out are beliefs?',
+      detail: 'Standard deviation of H beliefs. Higher = more polarization.',
     },
     meanBelief: {
-      name: 'Mean Belief',
-      description: 'Average belief in H across all agents.',
-      unit: '',
+      name: 'Mean P(H)',
+      short: 'Average belief in H',
+      detail: 'Where the population stands on average.',
+    },
+    updatingCase: {
+      name: 'Case',
+      short: 'Type of belief dynamics',
+      detail: 'Convergent, Divergent, Co-directional, or Cisvergent.',
     },
   },
 
-  networks: {
-    chain: {
-      name: 'Chain (H -> S -> D)',
-      description:
-        'Evidence screens off hypothesis. Typically leads to convergence.',
-    },
-    collider: {
-      name: 'Collider (H -> D <- S)',
-      description:
-        'Both causes affect evidence. Can lead to "explaining away" and divergence.',
-    },
+  /**
+   * Source reference
+   */
+  source: {
+    paper: 'Polarization and Factionalization in Bayesian Networks',
+    author: 'Jern, Chang & Kemp (2014); Bovens & Hartmann',
   },
+
+  /**
+   * Scientific caution
+   */
+  caution: `This is a toy model with 2-3 node networks and perfect Bayesian agents. Real polarization involves trust, motivated reasoning, social influence, and complex belief systems. The model shows one mechanism—network structure—not a complete theory of disagreement.`,
 };
