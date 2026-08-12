@@ -1,110 +1,88 @@
-/**
- * Content for the Swarm Dynamics visualizer.
- */
-
 export const CONTENT = {
   title: 'Swarm Dynamics',
-
   behaviors: {
     boids: {
       name: 'Boids',
-      description: `ALGORITHM: For each boid, sum three steering forces from visible neighbors:
+      description: `Each frame, a boid combines three steering rules over nearby visible neighbours:
 
-1. SEPARATION (avoid crowding)
-   force = sum of (self - neighbor) / distance^2
-   Strength controlled by "Separation" slider
+1. Separation: steer away from neighbours within the separation radius. Repulsion is strongest at close range and fades linearly to zero at that radius.
+   contribution ∝ -direction_to_neighbour × (1 - distance / separation_radius)
 
-2. ALIGNMENT (match neighbor direction)
-   force = (average_neighbor_velocity - self_velocity)
-   Strength controlled by "Alignment" slider
+2. Alignment: steer toward the average velocity of neighbours within the alignment radius.
+   contribution ∝ average_neighbour_velocity - own_velocity
 
-3. COHESION (move toward neighbor center)
-   force = direction toward center of neighbors
-   Strength controlled by "Cohesion" slider
+3. Cohesion: steer toward the local centre of mass of neighbours within the cohesion radius, more strongly when farther from it.
+   contribution ∝ direction_to_local_centre × distance_to_local_centre
 
-PARAMETERS:
-  "Vision radius" sets how far each boid can see
-  "Max Speed" limits velocity magnitude`,
+A roughly 270° field of view excludes neighbours directly behind. The summed contributions get a small random perturbation, light drag, and a constrained cruising speed range. "Vision radius" sets the overall interaction scale.
+
+On a torus, neighbours interact across wrapped edges; with bounded or cylindrical boundaries, boids also steer away from non-wrapping edges.
+
+No boid knows the shape or direction of the whole flock: flocking, splitting, merging and collective turns emerge entirely from repeated local interactions.`,
       credit: 'Craig Reynolds (1987)',
     },
-
     'friends-enemies': {
       name: 'Friends & Enemies',
-      description: `ALGORITHM: Each particle has one friend and one enemy.
+      description: `Simon Woods map (first-order):
 
-POSITION UPDATE (first-order, per frame):
-  x' = 0.995 * (x - origin) + origin
-       + 0.02 * f(friend) - 0.01 * f(enemy)
-  where f(a) = (a - x) / (epsilon + |a - x|)
+x' = 0.995 x + 0.02 f(friend) - 0.01 f(enemy)
+f(a) = (a - x)/(0.01 + |a - x|)
 
-The 0.995 contraction toward origin bounds the swarm.
-f() is a soft direction that vanishes at zero distance.
+The canvas implementation translates the origin to the centre and uses one model unit = min(width,height)/4 pixels.
 
-FRIEND MODE (key to visual structure):
-  "Cycle": friend[i] = i+1 mod n -> flowing ribbon
-  "Random": random friends -> orbiting cliques
+Default (Woods original configuration):
+• 1000 dancers
+• independent uniform initial x,y in [-1,1]
+• random friend and enemy, self-selection allowed
+• event probability 99/1000 per frame
+• one event rewires both relationships of one dancer
 
-PARAMETERS:
-  "Friend pull" (0.02): step fraction toward friend
-  "Enemy push" (0.01): step fraction away from enemy
-  "Rewire rate": expected rewiring events per frame (~0.1)
-    Each event picks ONE dancer and reassigns relationships
-  (In cycle mode, only enemies rewire to preserve structure)
+Ribbon Dance is the separate chained-friend variant: friend[i]=i+1 mod n, with fixed random enemies.
 
-TOPOLOGY: plane (self-bounding via contraction)`,
-      credit: 'Simon Woods (Wolfram Community, 2014)',
+The topology is fixed to the plane; the 0.995 contraction is the bounding mechanism.`,
+      credit: 'Simon Woods; ribbon variant by Jari Kirma (Wolfram Community)',
     },
-
     'particle-life': {
       name: 'Particle Life',
-      description: `ALGORITHM: Multiple particle types with attraction matrix A[i,j].
+      description: `Tom Mohr force profile:
 
-FOR each particle p of type i:
-  FOR each neighbor q of type j within "Radius":
-    IF too close: repel (prevents collapse)
-    ELSE: force = A[i,j] * (1 - distance/radius)
+Let r = distance / interaction radius and r_min = 0.3.
 
-ATTRACTION MATRIX (randomly generated):
-  A[i,j] > 0: type i attracted to type j
-  A[i,j] < 0: type i repelled by type j
+if r < r_min:
+  force = r/r_min - 1
+else:
+  force = A[i,j] * (1 - |1+r_min-2r|/(1-r_min))
 
-PARAMETERS:
-  "Types": number of particle types (colors)
-  "Radius": interaction range
-  "Friction": velocity decay (higher = more damping)
+The close-range core always repels. Outside it, the directed attraction matrix A[i,j] controls a triangular attraction/repulsion band that returns to zero at the interaction cutoff.
 
-Different matrices produce different emergent ecosystems.`,
-      credit: 'Jeffrey Ventrella, Tom Mohr',
+The matrix is asymmetric: type i can attract j while j repels i. Changing the number of types regenerates the matrix deterministically from the displayed seed.`,
+      credit: 'Particle Life / Tom Mohr',
     },
-
     swarmalators: {
       name: 'Swarmalators',
-      description: `EQUATIONS (O'Keeffe, Hong & Strogatz 2017):
+      description: `Two published models
 
-SPATIAL VELOCITY:
-  dx/dt = (1/N) * sum[ u_ij * (1 + J*cos(th_j - th_i)) - u_ij / r_ij ]
+Classic (2017): O'Keeffe, Hong & Strogatz
+  xdot_i = (1/N) Σ[u_ij(1 + J cos Δθ) - u_ij/r_ij]
+  θdot_i = ω_i + (K/N) Σ[sin Δθ/r_ij]
 
-  Three terms per pair:
-    +1: baseline attraction (always pulls together)
-    +J*cos(phase diff): phase-modulated attraction
-    -1/r: short-range repulsion (prevents collapse)
+Canonical identical-agent states use ω=0. Rainbow Ring, Splintered Wave and Spinning Rainbow are the phase-wave states; Static Sync and Static Async are intentionally static.
 
-PHASE EVOLUTION:
-  dth/dt = omega + (K/N) * sum[ sin(th_j - th_i) / r_ij ]
-  Distance-weighted Kuramoto coupling
+Diverse / chiral (2023): Ceron, O'Keeffe & Petersen
+Adds:
+• F1-F4 natural-frequency distributions
+• inherent circular motion c_i n_i
+• optional frequency-coupling offsets Q_xdot and Q_thetadot
+• finite-range coupling σ
 
-THE FIVE CANONICAL STATES (all with omega = 0):
-  Sync:           J=0.1, K=1    -> phases converge, static disc
-  Async:          J=0.1, K=-1   -> phases diverge, static disc
-  Rainbow Ring:   J=1,   K=0    -> annulus, phase = angle
-  Splintered:     J=1,   K=-0.1 -> quivering clusters
-  Spinning:       J=1,   K=-0.75-> perpetual circulation
+The 2023 presets here use parameter combinations explicitly stated in the paper for vortex arrays, locally coupled slime-mold-like states, and gas/multiple/flocking vortices.
 
-Motion comes from NEGATIVE K, not frequency variance.
-Static states are supposed to be static.
+Metrics:
+Z = ordinary Kuramoto phase synchrony
+S = max(|S+|,|S-|), circumferential space-phase order
 
-TOPOLOGY: plane (centroid conserved by antisymmetric forces)`,
-      credit: "O'Keeffe, Hong & Strogatz (2017)",
+The topology is fixed to the plane.`,
+      credit: "O'Keeffe, Hong & Strogatz (2017); Ceron, O'Keeffe & Petersen (2023)",
     },
   },
 };

@@ -1,11 +1,7 @@
-/**
- * Main view component for the Swarm Dynamics visualizer.
- */
-
 import React, { useState, useRef, useCallback } from 'react';
 import { usePlayback } from '@viz/core-ui';
-import type { DotsConfig, RenderOptions, Interaction, DotsMetrics } from '../model/types';
-import { DEFAULT_CONFIG, DEFAULT_RENDER_OPTIONS, MAX_PARTICLES } from '../model/types';
+import type { DotsConfig, RenderOptions, Interaction, DotsMetrics, BehaviorType } from '../model/types';
+import { DEFAULT_CONFIG, DEFAULT_RENDER_OPTIONS, MAX_PARTICLES, DEFAULT_PARTICLE_COUNTS } from '../model/types';
 import { DotsSimulation } from '../sim/DotsSimulation';
 import { DotsCanvas } from './DotsCanvas';
 import { DotsControls } from './DotsControls';
@@ -20,336 +16,143 @@ interface DotsViewProps {
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '16px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '16px',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 700,
-    margin: 0,
-    color: '#1a1a1a',
-  },
-  main: {
-    display: 'flex',
-    gap: '16px',
-  },
-  canvasSection: {
-    flex: 1,
-    minWidth: 0,
-  },
-  controlsSection: {
-    flex: '0 0 280px',
-  },
-  metricsBar: {
-    display: 'flex',
-    gap: '20px',
-    padding: '8px 12px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '4px',
-    fontSize: '12px',
-    marginTop: '8px',
-  },
-  metric: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-  },
-  metricLabel: {
-    color: '#888',
-  },
-  metricValue: {
-    fontWeight: 600,
-    fontFamily: 'monospace',
-    color: '#333',
-  },
-  interactionHint: {
-    fontSize: '12px',
-    color: '#999',
-    marginTop: '4px',
-  },
-  infoPanel: {
-    padding: '12px 16px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '4px',
-    marginTop: '12px',
-  },
-  infoPanelTitle: {
-    fontSize: '13px',
-    fontWeight: 600,
-    marginBottom: '6px',
-    color: '#333',
-  },
-  infoPanelText: {
-    margin: 0,
-    fontSize: '12px',
-    color: '#555',
-    lineHeight: 1.6,
-    whiteSpace: 'pre-line' as const,
-    fontFamily: 'SFMono-Regular, Consolas, Monaco, "Liberation Mono", monospace',
-  },
-  credit: {
-    fontSize: '11px',
-    color: '#888',
-    fontStyle: 'italic' as const,
-    marginTop: '6px',
-  },
+  container:{display:'flex',flexDirection:'column' as const,gap:16,fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'},
+  header:{display:'flex',alignItems:'baseline',gap:16},
+  title:{fontSize:24,fontWeight:700,margin:0,color:'#1a1a1a'},
+  main:{display:'flex',gap:16},
+  canvasSection:{flex:1,minWidth:0},
+  controlsSection:{flex:'0 0 280px'},
+  metricsBar:{display:'flex',gap:20,padding:'8px 12px',background:'#f8f9fa',borderRadius:4,fontSize:12,marginTop:8,flexWrap:'wrap' as const},
+  metric:{display:'flex',alignItems:'center',gap:6},
+  metricLabel:{color:'#888'}, metricValue:{fontWeight:600,fontFamily:'monospace',color:'#333'},
+  interactionHint:{fontSize:12,color:'#999',marginLeft:'auto'},
+  infoPanel:{padding:'14px 18px',background:'#f8f9fa',borderRadius:4,marginTop:12},
+  infoPanelTitle:{fontSize:13,fontWeight:600,marginBottom:8,color:'#1a1a1a',letterSpacing:'0.2px'},
+  infoPanelText:{margin:0,fontSize:13,color:'#444',lineHeight:1.65,whiteSpace:'pre-wrap' as const},
+  credit:{fontSize:12,color:'#888',fontStyle:'italic' as const,marginTop:8},
 };
 
 export const DotsView: React.FC<DotsViewProps> = ({
-  initialConfig = {},
-  initialRenderOptions = {},
-  width = 900,
-  height = 600,
+  initialConfig = {}, initialRenderOptions = {}, width = 900, height = 600,
 }) => {
-  // Configuration state
-  const [config, setConfig] = useState<DotsConfig>(() => ({
-    ...DEFAULT_CONFIG,
-    width,
-    height,
-    ...initialConfig,
+  const [config,setConfig]=useState<DotsConfig>(()=>({...DEFAULT_CONFIG,width,height,...initialConfig}));
+  const [renderOptions,setRenderOptions]=useState<RenderOptions>(()=>({
+    ...DEFAULT_RENDER_OPTIONS,
+    ...renderForBehavior((initialConfig.behavior??DEFAULT_CONFIG.behavior)),
+    ...initialRenderOptions,
   }));
+  const [zoom,setZoom]=useState(1);
+  const simRef=useRef(new DotsSimulation(config,renderOptions));
+  const [,forceRender]=useState(0);
+  const triggerRender=useCallback(()=>forceRender(c=>c+1),[]);
+  const [metrics,setMetrics]=useState<DotsMetrics>(()=>simRef.current.getMetrics());
 
-  // Set render options based on initial behavior
-  const [renderOptions, setRenderOptions] = useState<RenderOptions>(() => {
-    const behavior = initialConfig.behavior || DEFAULT_CONFIG.behavior;
-    return {
-      ...DEFAULT_RENDER_OPTIONS,
-      showArrows: behavior === 'boids',
-      colorScheme: behavior === 'particle-life' ? 'type'
-                 : behavior === 'swarmalators' ? 'phase'
-                 : 'monochrome',
-      ...initialRenderOptions,
-    };
-  });
-
-  // Zoom state for manual view control
-  const [zoom, setZoom] = useState(1);
-
-  // Simulation ref
-  const simRef = useRef(new DotsSimulation(config, renderOptions));
-  const [, forceRender] = useState(0);
-  const triggerRender = useCallback(() => forceRender((c) => c + 1), []);
-
-  // Metrics
-  const [metrics, setMetrics] = useState<DotsMetrics>(() =>
-    simRef.current.getMetrics()
-  );
-
-  // Handle simulation step
-  const handleStep = useCallback(() => {
-    simRef.current.step();
+  const syncFromSimulation=useCallback(()=>{
     setMetrics(simRef.current.getMetrics());
     triggerRender();
-  }, [triggerRender]);
+  },[triggerRender]);
 
-  // Playback hook
-  const playback = usePlayback({
-    onStep: handleStep,
-    initialSpeed: 1,
-  });
+  const handleStep=useCallback(()=>{simRef.current.step();syncFromSimulation();},[syncFromSimulation]);
+  const playback=usePlayback({onStep:handleStep,initialSpeed:1});
+  const handleInteraction=useCallback((interaction:Interaction)=>simRef.current.setInteraction(interaction),[]);
 
-  // Handle interaction
-  const handleInteraction = useCallback((interaction: Interaction) => {
-    simRef.current.setInteraction(interaction);
-  }, []);
+  const handleConfigChange=useCallback((change:Partial<DotsConfig>)=>{
+    // Behavior switches are one atomic reset. This prevents transient states in
+    // which the behavior, parameters, topology, and particle cap disagree.
+    if(change.behavior){
+      const behavior=change.behavior;
+      const naturalTopology=behavior==='friends-enemies'||behavior==='swarmalators'?'plane':'torus';
+      const next:DotsConfig={
+        ...config,
+        ...change,
+        topology:naturalTopology,
+        numParticles:Math.min(change.numParticles??DEFAULT_PARTICLE_COUNTS[behavior],MAX_PARTICLES[behavior]),
+      };
+      setConfig(next);
+      simRef.current.resetWithConfig(next);
+      const ro=renderForBehavior(behavior);
+      setRenderOptions(prev=>({...prev,...ro}));
+      simRef.current.updateRenderOptions(ro);
+      syncFromSimulation();
+      return;
+    }
 
-  // Handle config change
-  const handleConfigChange = useCallback(
-    (newConfig: Partial<DotsConfig>) => {
-      const updated = { ...config, ...newConfig };
-      setConfig(updated);
+    if(change.seed!==undefined && change.seed!==config.seed && Object.keys(change).length===1){
+      const next={...config,seed:change.seed};
+      setConfig(next);
+      simRef.current.resetWithSeed(change.seed);
+      syncFromSimulation();
+      return;
+    }
 
-      // If seed changed, reset simulation with new seed
-      if (newConfig.seed !== undefined && newConfig.seed !== config.seed) {
-        simRef.current.resetWithSeed(newConfig.seed);
-        setMetrics(simRef.current.getMetrics());
-        triggerRender();
-        return;
-      }
+    const next={...config,...change};
+    setConfig(next);
+    simRef.current.updateConfig(change);
+    syncFromSimulation();
+  },[config,syncFromSimulation]);
 
-      simRef.current.updateConfig(newConfig);
-      setMetrics(simRef.current.getMetrics());
-      triggerRender();
-
-      // Auto-adjust render options, topology, and particle count based on behavior
-      if (newConfig.behavior) {
-        const behavior = newConfig.behavior;
-        const newRenderOpts: Partial<RenderOptions> = {
-          showArrows: behavior === 'boids',
-          colorScheme: behavior === 'particle-life' ? 'type'
-                     : behavior === 'swarmalators' ? 'phase'
-                     : 'monochrome',
-        };
-        setRenderOptions(prev => ({ ...prev, ...newRenderOpts }));
-        simRef.current.updateRenderOptions(newRenderOpts);
-
-        // Auto-set topology: plane for self-bounding models, torus for others
-        const naturalTopology =
-          behavior === 'friends-enemies' || behavior === 'swarmalators'
-            ? 'plane'
-            : 'torus';
-        if (updated.topology !== naturalTopology) {
-          const topologyUpdate = { topology: naturalTopology as DotsConfig['topology'] };
-          setConfig(prev => ({ ...prev, ...topologyUpdate }));
-          simRef.current.updateConfig(topologyUpdate);
-        }
-
-        // Clamp particle count to max for this behavior
-        const maxParticles = MAX_PARTICLES[behavior] || 1000;
-        if (updated.numParticles > maxParticles) {
-          const particleUpdate = { numParticles: maxParticles };
-          setConfig(prev => ({ ...prev, ...particleUpdate }));
-          simRef.current.updateConfig(particleUpdate);
-        }
-      }
-    },
-    [config, triggerRender]
-  );
-
-  // Handle render options change
-  const handleRenderOptionsChange = useCallback(
-    (newOptions: Partial<RenderOptions>) => {
-      const updated = { ...renderOptions, ...newOptions };
-      setRenderOptions(updated);
-      simRef.current.updateRenderOptions(newOptions);
-    },
-    [renderOptions]
-  );
-
-  // Handle preset selection
-  const handlePresetSelect = useCallback(
-    (preset: Preset) => {
-      const newConfig = { ...preset.config, width, height };
-      setConfig(newConfig);
-      simRef.current.resetWithConfig(newConfig);
-      setMetrics(simRef.current.getMetrics());
-      triggerRender();
-    },
-    [width, height, triggerRender]
-  );
-
-  // Handle reset (same seed)
-  const handleReset = useCallback(() => {
-    simRef.current.reset();
-    setMetrics(simRef.current.getMetrics());
+  const handleRenderOptionsChange=useCallback((change:Partial<RenderOptions>)=>{
+    setRenderOptions(prev=>({...prev,...change}));
+    simRef.current.updateRenderOptions(change);
     triggerRender();
-  }, [triggerRender]);
+  },[triggerRender]);
 
-  // Handle new seed
-  const handleNewSeed = useCallback(() => {
-    const newSeed = Math.floor(Math.random() * 1000000);
-    const newConfig = { ...config, seed: newSeed };
-    setConfig(newConfig);
-    simRef.current.resetWithSeed(newSeed);
-    setMetrics(simRef.current.getMetrics());
-    triggerRender();
-  }, [config, triggerRender]);
+  const handlePresetSelect=useCallback((preset:Preset)=>{
+    const next={...preset.config,width,height};
+    setConfig(next);
+    simRef.current.resetWithConfig(next);
+    const ro=renderForBehavior(next.behavior);
+    setRenderOptions(prev=>({...prev,...ro}));
+    simRef.current.updateRenderOptions(ro);
+    syncFromSimulation();
+  },[width,height,syncFromSimulation]);
 
-  // Get current behavior info
-  const behaviorInfo = CONTENT.behaviors[config.behavior];
-  const state = simRef.current.getState();
+  const handleReset=useCallback(()=>{simRef.current.reset();syncFromSimulation();},[syncFromSimulation]);
+  const handleNewSeed=useCallback(()=>{
+    const seed=Math.floor(Math.random()*1_000_000);
+    setConfig(prev=>({...prev,seed}));
+    simRef.current.resetWithSeed(seed);
+    syncFromSimulation();
+  },[syncFromSimulation]);
 
-  return (
-    <div style={styles.container}>
-      {/* Header */}
-      <header style={styles.header}>
-        <h1 style={styles.title}>{CONTENT.title}</h1>
-      </header>
+  const info=CONTENT.behaviors[config.behavior];
+  const state=simRef.current.getState();
 
-      {/* Main content */}
-      <div style={styles.main}>
-        {/* Canvas section */}
-        <div style={styles.canvasSection}>
-          <DotsCanvas
-            state={state}
-            options={renderOptions}
-            width={width}
-            height={height}
-            zoom={zoom}
-            onInteraction={handleInteraction}
-          />
-
-          {/* Metrics bar */}
-          <div style={styles.metricsBar}>
-            <div style={styles.metric}>
-              <span style={styles.metricLabel}>Frame</span>
-              <span style={styles.metricValue}>{metrics.frame}</span>
-            </div>
-            <div style={styles.metric}>
-              <span style={styles.metricLabel}>Speed</span>
-              <span style={styles.metricValue}>
-                {metrics.avgSpeed.toFixed(2)}
-              </span>
-            </div>
-            {metrics.orderParameter !== undefined && (
-              <div style={styles.metric}>
-                <span style={styles.metricLabel}>Order</span>
-                <span style={styles.metricValue}>
-                  {metrics.orderParameter.toFixed(2)}
-                </span>
-              </div>
-            )}
-            {metrics.phaseSynchronization !== undefined && (
-              <div style={styles.metric}>
-                <span style={styles.metricLabel}>Sync</span>
-                <span style={styles.metricValue}>
-                  {metrics.phaseSynchronization.toFixed(2)}
-                </span>
-              </div>
-            )}
-            <span style={styles.interactionHint}>
-              Click to attract · Right-click to repel
-            </span>
-          </div>
-
-          {/* Behavior description */}
-          {behaviorInfo && (
-            <div style={styles.infoPanel}>
-              <div style={styles.infoPanelTitle}>{behaviorInfo.name}</div>
-              <p style={styles.infoPanelText}>
-                {behaviorInfo.description}
-              </p>
-              {behaviorInfo.credit && (
-                <p style={styles.credit}>
-                  {behaviorInfo.credit}
-                </p>
-              )}
-            </div>
-          )}
+  return <div style={styles.container}>
+    <header style={styles.header}><h1 style={styles.title}>{CONTENT.title}</h1></header>
+    <div style={styles.main}>
+      <div style={styles.canvasSection}>
+        <DotsCanvas state={state} options={renderOptions} width={width} height={height} zoom={zoom} onInteraction={handleInteraction}/>
+        <div style={styles.metricsBar}>
+          <Metric label="Frame" value={`${metrics.frame}`}/>
+          <Metric label="Speed" value={metrics.avgSpeed.toFixed(2)}/>
+          {metrics.orderParameter!==undefined&&<Metric label="Order" value={metrics.orderParameter.toFixed(2)}/>} 
+          {metrics.phaseSynchronization!==undefined&&<Metric label="Sync Z" value={metrics.phaseSynchronization.toFixed(2)}/>} 
+          {metrics.spacePhaseOrder!==undefined&&<Metric label="Space-phase S" value={metrics.spacePhaseOrder.toFixed(2)}/>} 
+          <span style={styles.interactionHint}>Click to attract · Right-click to repel</span>
         </div>
-
-        {/* Controls section */}
-        <div style={styles.controlsSection}>
-          <DotsControls
-            config={config}
-            renderOptions={renderOptions}
-            presets={PRESETS}
-            isPlaying={playback.isPlaying}
-            simulationSpeed={playback.speed}
-            zoom={zoom}
-            onSimulationSpeedChange={playback.setSpeed}
-            onZoomChange={setZoom}
-            onConfigChange={handleConfigChange}
-            onRenderOptionsChange={handleRenderOptionsChange}
-            onPresetSelect={handlePresetSelect}
-            onPlay={playback.play}
-            onPause={playback.pause}
-            onStep={handleStep}
-            onReset={handleReset}
-            onNewSeed={handleNewSeed}
-          />
-        </div>
+        {info&&<div style={styles.infoPanel}><div style={styles.infoPanelTitle}>{info.name}</div><p style={styles.infoPanelText}>{info.description}</p>{info.credit&&<p style={styles.credit}>{info.credit}</p>}</div>}
+      </div>
+      <div style={styles.controlsSection}>
+        <DotsControls config={config} renderOptions={renderOptions} presets={PRESETS}
+          isPlaying={playback.isPlaying} simulationSpeed={playback.speed} zoom={zoom}
+          onSimulationSpeedChange={playback.setSpeed} onZoomChange={setZoom}
+          onConfigChange={handleConfigChange} onRenderOptionsChange={handleRenderOptionsChange}
+          onPresetSelect={handlePresetSelect} onPlay={playback.play} onPause={playback.pause}
+          onStep={handleStep} onReset={handleReset} onNewSeed={handleNewSeed}/>
       </div>
     </div>
-  );
+  </div>;
 };
+
+const Metric:React.FC<{label:string;value:string}>=({label,value})=><div style={styles.metric}><span style={styles.metricLabel}>{label}</span><span style={styles.metricValue}>{value}</span></div>;
+
+function renderForBehavior(behavior:BehaviorType):Partial<RenderOptions>{
+  return {
+    showArrows:behavior==='boids',
+    colorScheme:behavior==='particle-life'?'type':behavior==='swarmalators'?'phase':'monochrome',
+    particleRadius:behavior==='friends-enemies'?1:behavior==='particle-life'||behavior==='swarmalators'?4:2,
+  };
+}
 
 export default DotsView;
