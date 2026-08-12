@@ -1,10 +1,3 @@
-/**
- * Simulation wrapper for the Swarm Dynamics visualizer.
- *
- * Manages state, RNG, and provides step/reset interface
- * following the pattern of other visualizers in this project.
- */
-
 import { SeededRandom } from '@viz/core-math';
 import type {
   DotsConfig,
@@ -12,6 +5,8 @@ import type {
   DotsMetrics,
   Interaction,
   RenderOptions,
+  SwarmalatorsParams,
+  ParticleLifeParams,
 } from '../model/types';
 import { DEFAULT_CONFIG, DEFAULT_RENDER_OPTIONS } from '../model/types';
 import { DotsModel } from '../model/DotsModel';
@@ -35,37 +30,11 @@ export class DotsSimulation {
     this.state = this.model.createInitialState(this.rng);
   }
 
-  /**
-   * Get the current simulation state.
-   */
-  getState(): DotsState {
-    return this.state;
-  }
+  getState(): DotsState { return this.state; }
+  getMetrics(): DotsMetrics { return this.model.computeMetrics(this.state); }
+  getConfig(): DotsConfig { return this.config; }
+  getRenderOptions(): RenderOptions { return this.renderOptions; }
 
-  /**
-   * Get current metrics.
-   */
-  getMetrics(): DotsMetrics {
-    return this.model.computeMetrics(this.state);
-  }
-
-  /**
-   * Get current configuration.
-   */
-  getConfig(): DotsConfig {
-    return this.config;
-  }
-
-  /**
-   * Get render options.
-   */
-  getRenderOptions(): RenderOptions {
-    return this.renderOptions;
-  }
-
-  /**
-   * Advance simulation by one step.
-   */
   step(): void {
     this.state = this.model.step(
       this.state,
@@ -75,17 +44,11 @@ export class DotsSimulation {
     );
   }
 
-  /**
-   * Reset to initial state with current seed.
-   */
   reset(): void {
     this.rng = new SeededRandom(this.config.seed);
     this.state = this.model.createInitialState(this.rng);
   }
 
-  /**
-   * Reset with a new seed.
-   */
   resetWithSeed(seed: number): void {
     this.config = { ...this.config, seed };
     this.model.updateConfig({ seed });
@@ -93,9 +56,6 @@ export class DotsSimulation {
     this.state = this.model.createInitialState(this.rng);
   }
 
-  /**
-   * Reset with new configuration.
-   */
   resetWithConfig(config: Partial<DotsConfig>): void {
     this.config = { ...this.config, ...config };
     this.model = new DotsModel(this.config);
@@ -103,52 +63,47 @@ export class DotsSimulation {
     this.state = this.model.createInitialState(this.rng);
   }
 
-  /**
-   * Update configuration without full reset.
-   * Some parameters can be changed live, others require reset.
-   */
   updateConfig(config: Partial<DotsConfig>): void {
-    // Check if numTypes changed for Particle Life (causes freeze with stale particle types)
-    const numTypesChanged =
-      config.behaviorParams?.type === 'particle-life' &&
-      this.config.behaviorParams.type === 'particle-life' &&
-      (config.behaviorParams as { numTypes?: number }).numTypes !== undefined &&
-      (config.behaviorParams as { numTypes?: number }).numTypes !==
-        (this.config.behaviorParams as { numTypes: number }).numTypes;
-
-    const requiresReset =
-      config.numParticles !== undefined ||
-      config.behavior !== undefined ||
-      numTypesChanged ||
-      (config.behaviorParams?.type !== undefined &&
-        config.behaviorParams.type !== this.config.behaviorParams.type);
-
-    if (requiresReset) {
+    if (this.requiresReset(config)) {
       this.resetWithConfig(config);
-    } else {
-      this.config = { ...this.config, ...config };
-      this.model.updateConfig(config);
+      return;
     }
+    this.config = { ...this.config, ...config };
+    this.model.updateConfig(config);
   }
 
-  /**
-   * Update render options.
-   */
+  private requiresReset(config: Partial<DotsConfig>): boolean {
+    if (config.numParticles !== undefined || config.behavior !== undefined) return true;
+
+    const next = config.behaviorParams;
+    const current = this.config.behaviorParams;
+    if (!next) return false;
+    if (next.type !== current.type) return true;
+
+    if (next.type === 'particle-life' && current.type === 'particle-life') {
+      return (next as ParticleLifeParams).numTypes !== current.numTypes;
+    }
+
+    if (next.type === 'swarmalators' && current.type === 'swarmalators') {
+      const a = next as SwarmalatorsParams;
+      const b = current as SwarmalatorsParams;
+      return a.model !== b.model ||
+        a.frequencyMode !== b.frequencyMode ||
+        a.omegaMax !== b.omegaMax ||
+        a.initMode !== b.initMode ||
+        a.initialBoxSize !== b.initialBoxSize;
+    }
+
+    return false;
+  }
+
   updateRenderOptions(options: Partial<RenderOptions>): void {
     this.renderOptions = { ...this.renderOptions, ...options };
   }
 
-  /**
-   * Set user interaction state.
-   */
   setInteraction(interaction: Interaction | null): void {
     this.interaction = interaction;
   }
 
-  /**
-   * Get the underlying model (for advanced use).
-   */
-  getModel(): DotsModel {
-    return this.model;
-  }
+  getModel(): DotsModel { return this.model; }
 }

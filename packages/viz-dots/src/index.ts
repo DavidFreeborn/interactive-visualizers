@@ -1,23 +1,17 @@
 /**
  * Swarm Dynamics Visualizer
  *
- * Interactive visualization of emergent behavior from simple rules.
- *
- * Scientific Status: Conceptual analogy / Standard toy model
- *
- * Behaviors:
- * - Boids (Craig Reynolds, 1987) - flocking/murmuration
- * - Friends & Enemies (Simon Woods, Wolfram Community) - social dynamics
- * - Particle Life (Ventrella, Mohr) - multi-type interactions
- * - Swarmalators (O'Keeffe, Hong & Strogatz, 2017) - phase-coupled swarms
- *
- * @packageDocumentation
+ * Published/toy-model implementations:
+ * - Boids (Reynolds, 1987)
+ * - Friends & Enemies (Woods; Kirma ribbon variant)
+ * - Particle Life (Tom Mohr force profile)
+ * - Swarmalators (O'Keeffe, Hong & Strogatz 2017;
+ *   Ceron, O'Keeffe & Petersen 2023)
  */
-
-// Types
 export type {
   Particle,
   BehaviorType,
+  TopologyType,
   DotsConfig,
   DotsState,
   DotsMetrics,
@@ -27,19 +21,24 @@ export type {
   FriendsEnemiesParams,
   ParticleLifeParams,
   SwarmalatorsParams,
+  SwarmalatorModel,
+  NaturalFrequencyMode,
   BehaviorParams,
 } from './model/types';
 
 export {
   DEFAULT_CONFIG,
   DEFAULT_RENDER_OPTIONS,
+  DEFAULT_BOIDS_PARAMS,
+  DEFAULT_FRIENDS_ENEMIES_PARAMS,
+  DEFAULT_PARTICLE_LIFE_PARAMS,
+  DEFAULT_SWARMALATOR_PARAMS,
+  MAX_PARTICLES,
 } from './model/types';
 
-// Model
 export { DotsModel } from './model/DotsModel';
 export { SpatialHash } from './model/spatial';
 
-// Behaviors
 export {
   Behavior,
   BoidsBehavior,
@@ -49,18 +48,10 @@ export {
   createBehavior,
   generateAttractionMatrix,
 } from './model/behaviors';
+export { particleLifeForce } from './model/behaviors/ParticleLifeBehavior';
 
-// Simulation
 export { DotsSimulation } from './sim/DotsSimulation';
-
-// Views
 export { DotsView, DotsCanvas, DotsControls } from './views';
-
-// Content
 export { CONTENT } from './content';
-
-// Presets
 export { PRESETS, type Preset } from './presets';
-
-// Default export
 export { DotsView as default } from './views';

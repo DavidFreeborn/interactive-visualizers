@@ -1,58 +1,41 @@
-/**
- * Spatial hash grid for efficient neighbor queries.
- *
- * Critical for O(n) performance instead of O(n^2) when checking
- * particle interactions. Each particle is hashed into a grid cell,
- * and neighbor queries only check nearby cells.
- *
- * Optimizations:
- * - Numeric keys for faster hashing
- * - Pre-allocated cell arrays
- * - Reused result arrays to reduce GC pressure
- */
+import type { Particle, TopologyType } from './types';
 
-import type { Particle } from './types';
+interface Point { x: number; y: number }
 
 /**
- * Spatial hash grid for fast neighbor lookups.
+ * Spatial hash with topology-aware neighbour geometry.
+ *
+ * The previous implementation reduced every wrapped topology to one boolean,
+ * which incorrectly made cylinders wrap both axes and could not represent a
+ * Möbius reflection. This version keeps the quotient geometry explicit.
  */
 export class SpatialHash {
-  private cellSize: number;
-  private invCellSize: number; // Precomputed for faster division
-  private grid: Map<number, Particle[]>;
-  private cellPool: Particle[][]; // Pool of reusable cell arrays
-  private width: number;
-  private height: number;
-  private wrap: boolean;
-  private maxCellX: number;
-  private maxCellY: number;
-  private halfWidth: number;
-  private halfHeight: number;
+  private readonly invCellSize: number;
+  private readonly topology: TopologyType;
+  private readonly grid = new Map<number, Particle[]>();
+  private readonly cellPool: Particle[][] = [];
+  private readonly maxCellX: number;
+  private readonly maxCellY: number;
 
-  constructor(width: number, height: number, cellSize: number, wrap: boolean) {
-    this.width = width;
-    this.height = height;
-    this.cellSize = cellSize;
+  constructor(
+    private readonly width: number,
+    private readonly height: number,
+    cellSize: number,
+    topology: TopologyType | boolean
+  ) {
+    // Boolean form is retained for backwards-compatible tests/API callers:
+    // true means torus, false means bounded. New code should pass TopologyType.
+    this.topology = typeof topology === 'boolean' ? (topology ? 'torus' : 'bounded') : topology;
     this.invCellSize = 1 / cellSize;
-    this.wrap = wrap;
-    this.grid = new Map();
-    this.cellPool = [];
-    this.maxCellX = Math.ceil(width / cellSize);
-    this.maxCellY = Math.ceil(height / cellSize);
-    this.halfWidth = width / 2;
-    this.halfHeight = height / 2;
+    this.maxCellX = Math.max(1, Math.ceil(width / cellSize));
+    this.maxCellY = Math.max(1, Math.ceil(height / cellSize));
   }
 
-  // Numeric key is much faster than string key
   private key(cx: number, cy: number): number {
     return cy * this.maxCellX + cx;
   }
 
-  /**
-   * Clear all particles from the grid.
-   */
   clear(): void {
-    // Return cell arrays to pool for reuse
     for (const cell of this.grid.values()) {
       cell.length = 0;
       this.cellPool.push(cell);
@@ -60,21 +43,14 @@ export class SpatialHash {
     this.grid.clear();
   }
 
-  /**
-   * Get or create a cell array.
-   */
   private getCell(): Particle[] {
     return this.cellPool.pop() || [];
   }
 
-  /**
-   * Insert a single particle into the grid.
-   */
   insert(particle: Particle): void {
-    const cx = (particle.x * this.invCellSize) | 0;
-    const cy = (particle.y * this.invCellSize) | 0;
+    const cx = Math.floor(particle.x * this.invCellSize);
+    const cy = Math.floor(particle.y * this.invCellSize);
     const k = this.key(cx, cy);
-
     let cell = this.grid.get(k);
     if (!cell) {
       cell = this.getCell();
@@ -83,64 +59,80 @@ export class SpatialHash {
     cell.push(particle);
   }
 
-  /**
-   * Rebuild the grid from a list of particles.
-   */
   rebuild(particles: Particle[]): void {
     this.clear();
-    for (let i = 0; i < particles.length; i++) {
-      this.insert(particles[i]);
+    for (const p of particles) this.insert(p);
+  }
+
+  /** Equivalent images of a point sufficient to find the shortest quotient distance. */
+  private images(p: Point): Point[] {
+    switch (this.topology) {
+      case 'torus': {
+        const out: Point[] = [];
+        for (const sx of [-this.width, 0, this.width]) {
+          for (const sy of [-this.height, 0, this.height]) {
+            out.push({ x: p.x + sx, y: p.y + sy });
+          }
+        }
+        return out;
+      }
+      case 'cylinder-x':
+        return [
+          p,
+          { x: p.x - this.width, y: p.y },
+          { x: p.x + this.width, y: p.y },
+        ];
+      case 'cylinder-y':
+        return [
+          p,
+          { x: p.x, y: p.y - this.height },
+          { x: p.x, y: p.y + this.height },
+        ];
+      case 'mobius-x':
+        return [
+          p,
+          { x: p.x - this.width, y: this.height - p.y },
+          { x: p.x + this.width, y: this.height - p.y },
+        ];
+      case 'mobius-y':
+        return [
+          p,
+          { x: this.width - p.x, y: p.y - this.height },
+          { x: this.width - p.x, y: p.y + this.height },
+        ];
+      default:
+        return [p];
     }
   }
 
-  /**
-   * Query all particles within a radius of a point.
-   * Handles toroidal wrapping if enabled.
-   */
   queryRadius(x: number, y: number, radius: number): Particle[] {
     const results: Particle[] = [];
+    const seen = new Set<number>();
     const cellRadius = Math.ceil(radius * this.invCellSize);
-    const cx = (x * this.invCellSize) | 0;
-    const cy = (y * this.invCellSize) | 0;
     const r2 = radius * radius;
 
-    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
-      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-        let ncx = cx + dx;
-        let ncy = cy + dy;
+    // Search cells around every equivalent image of the query point, then use
+    // wrappedDistance as the final authority. This makes cylinder and Möbius
+    // seams correct without embedding topology-specific logic in behaviours.
+    for (const image of this.images({ x, y })) {
+      const cx = Math.floor(image.x * this.invCellSize);
+      const cy = Math.floor(image.y * this.invCellSize);
 
-        // Handle wrapping
-        if (this.wrap) {
-          ncx = ((ncx % this.maxCellX) + this.maxCellX) % this.maxCellX;
-          ncy = ((ncy % this.maxCellY) + this.maxCellY) % this.maxCellY;
-        } else if (ncx < 0 || ncx >= this.maxCellX || ncy < 0 || ncy >= this.maxCellY) {
-          continue;
-        }
+      for (let ox = -cellRadius; ox <= cellRadius; ox++) {
+        for (let oy = -cellRadius; oy <= cellRadius; oy++) {
+          const ncx = cx + ox;
+          const ncy = cy + oy;
+          if (ncx < 0 || ncx >= this.maxCellX || ncy < 0 || ncy >= this.maxCellY) continue;
+          const cell = this.grid.get(this.key(ncx, ncy));
+          if (!cell) continue;
 
-        const cell = this.grid.get(this.key(ncx, ncy));
-        if (!cell) continue;
-
-        const cellLen = cell.length;
-        for (let i = 0; i < cellLen; i++) {
-          const p = cell[i];
-          let px = p.x;
-          let py = p.y;
-
-          // Adjust for wrapping distance
-          if (this.wrap) {
-            let ddx = px - x;
-            let ddy = py - y;
-            if (ddx > this.halfWidth) px -= this.width;
-            else if (ddx < -this.halfWidth) px += this.width;
-            if (ddy > this.halfHeight) py -= this.height;
-            else if (ddy < -this.halfHeight) py += this.height;
-          }
-
-          const distX = px - x;
-          const distY = py - y;
-          const dist2 = distX * distX + distY * distY;
-          if (dist2 <= r2) {
-            results.push(p);
+          for (const p of cell) {
+            if (seen.has(p.id)) continue;
+            const d = this.wrappedDistance(x, y, p.x, p.y);
+            if (d.dx * d.dx + d.dy * d.dy <= r2) {
+              seen.add(p.id);
+              results.push(p);
+            }
           }
         }
       }
@@ -149,24 +141,27 @@ export class SpatialHash {
     return results;
   }
 
-  /**
-   * Calculate wrapped distance between two points.
-   */
-  wrappedDistance(x1: number, y1: number, x2: number, y2: number): { dx: number; dy: number; dist: number } {
-    let dx = x2 - x1;
-    let dy = y2 - y1;
+  wrappedDistance(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ): { dx: number; dy: number; dist: number } {
+    let bestDx = x2 - x1;
+    let bestDy = y2 - y1;
+    let best2 = bestDx * bestDx + bestDy * bestDy;
 
-    if (this.wrap) {
-      if (dx > this.halfWidth) dx -= this.width;
-      else if (dx < -this.halfWidth) dx += this.width;
-      if (dy > this.halfHeight) dy -= this.height;
-      else if (dy < -this.halfHeight) dy += this.height;
+    for (const image of this.images({ x: x2, y: y2 })) {
+      const dx = image.x - x1;
+      const dy = image.y - y1;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < best2) {
+        best2 = d2;
+        bestDx = dx;
+        bestDy = dy;
+      }
     }
 
-    return {
-      dx,
-      dy,
-      dist: Math.sqrt(dx * dx + dy * dy),
-    };
+    return { dx: bestDx, dy: bestDy, dist: Math.sqrt(best2) };
   }
 }
