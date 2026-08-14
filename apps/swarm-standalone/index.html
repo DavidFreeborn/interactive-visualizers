@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Swarm Dynamics Visualiser | David Freeborn</title>
+    <meta name="description" content="Interactive visualisation of emergent collective behaviour across four models: Boids flocking, Friends and Enemies, Particle Life, and Swarmalators." />
+    <link rel="canonical" href="https://www.davidpeterwallisfreeborn.com/fun/swarm-dynamics/" />
+    <meta property="og:title" content="Swarm Dynamics Visualiser" />
+    <meta property="og:description" content="Interactive visualisation of emergent collective behaviour across four models: Boids flocking, Friends and Enemies, Particle Life, and Swarmalators." />
+    <meta property="og:url" content="https://www.davidpeterwallisfreeborn.com/fun/swarm-dynamics/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Swarm Dynamics Visualiser" />
+    <meta name="twitter:description" content="Interactive visualisation of emergent collective behaviour across four models: Boids flocking, Friends and Enemies, Particle Life, and Swarmalators." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --bg: #fafafa;
+        --text: #1a1a1a;
+        --muted: #555;
+        --border: #d0d0d0;
+        --accent: #2563eb;
+      }
+      body {
+        font-family: var(--font-sans);
+        background: var(--bg);
+        min-height: 100vh;
+        color: var(--text);
+      }
+      .back-nav {
+        padding: 1rem 1.5rem;
+        background: #ffffff;
+        border-bottom: 1px solid var(--border);
+      }
+      .back-nav a {
+        color: var(--accent);
+        font-size: 0.875rem;
+        text-decoration: none;
+      }
+      .back-nav a:hover { text-decoration: underline; }
+
+      /* Static semantic header - visible for indexability and when JS unavailable */
+      .static-header {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1.5rem 1.5rem 1rem;
+      }
+      .static-header h1 {
+        font-family: var(--font-serif);
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+      }
+      .static-header .intro {
+        color: var(--muted);
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+      }
+      .static-header .visualisers {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      @media (max-width: 600px) {
+        .static-header .visualisers { grid-template-columns: 1fr; }
+      }
+      .static-header .vis-item h2 {
+        font-family: var(--font-serif);
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .static-header .vis-item p {
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+
+      /* Hide static header when React app has rendered */
+      #root:not(:empty) ~ .static-header,
+      body:has(#root:not(:empty)) .static-header {
+        display: none;
+      }
+
+      /* Noscript fallback styling */
+      noscript .static-fallback {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        background: #fff;
+        border: 1px solid var(--border);
+      }
+      noscript .static-fallback p {
+        color: var(--muted);
+        font-size: 0.9375rem;
+      }
+
+      /* Override bundled React app styles - aggressive reset */
+      #root, #root * {
+        font-family: var(--font-sans) !important;
+      }
+      #root h1, #root h2, #root h3, #root h4 {
+        font-family: var(--font-serif) !important;
+        font-weight: 600 !important;
+      }
+      /* Force 2px border-radius everywhere */
+      #root *, #root *::before, #root *::after {
+        border-radius: 2px !important;
+      }
+      /* Specific overrides for common React UI patterns */
+      #root div, #root section, #root article, #root aside,
+      #root button, #root input, #root select, #root textarea,
+      #root [role="button"], #root [role="tab"], #root [role="tabpanel"] {
+        border-radius: 2px !important;
+      }
+      /* Remove any box shadows that create soft edges */
+      #root [class*="shadow"], #root [class*="Shadow"] {
+        box-shadow: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="back-nav"><a href="/fun/">&larr; Back to Visualisations</a></nav>
+
+    <header class="static-header">
+      <h1>Swarm Dynamics Visualiser</h1>
+      <p class="intro">An interactive exploration of emergent collective behaviour: how simple local rules between individual agents produce flocks, clusters, chases, and synchronised patterns at the level of the whole swarm. These are standard toy models from the complex-systems literature, not exact simulations of any particular animal or physical system.</p>
+      <div class="visualisers">
+        <div class="vis-item">
+          <h2>Boids Flocking</h2>
+          <p>Craig Reynolds&rsquo; 1987 model of flocks, herds, and schools: separation, alignment, and cohesion between neighbours produce lifelike collective motion.</p>
+        </div>
+        <div class="vis-item">
+          <h2>Friends &amp; Enemies</h2>
+          <p>Simon Woods&rsquo; map in which each particle chases one &ldquo;friend&rdquo; and flees one &ldquo;enemy&rdquo;, generating endlessly shifting pursuit patterns.</p>
+        </div>
+        <div class="vis-item">
+          <h2>Particle Life</h2>
+          <p>Asymmetric attraction and repulsion between particle types, following Tom Mohr&rsquo;s canonical force profile, self-organise into cell-like structures.</p>
+        </div>
+        <div class="vis-item">
+          <h2>Swarmalators</h2>
+          <p>O&rsquo;Keeffe, Hong, and Strogatz&rsquo;s 2017 model (with the 2023 Ceron, O&rsquo;Keeffe, and Petersen extensions) of oscillators that both move through space and synchronise their internal phases.</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="root"></div>
+
+    <noscript>
+      <div class="static-fallback">
+        <p>This visualisation requires JavaScript to run. Please enable JavaScript in your browser to explore the swarm dynamics models.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
