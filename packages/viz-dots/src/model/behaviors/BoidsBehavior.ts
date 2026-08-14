@@ -78,16 +78,22 @@ export class BoidsBehavior extends Behavior<BoidsParams> {
       const headingX = currentSpeed > 0.1 ? p.vx / currentSpeed : 1;
       const headingY = currentSpeed > 0.1 ? p.vy / currentSpeed : 0;
 
-      for (const n of neighbors) {
+      // queryRadius already computed the shortest quotient offset to each
+      // neighbor; the parallel arrays avoid recomputing wrapped distances.
+      const nDx = spatialIndex.neighborDx;
+      const nDy = spatialIndex.neighborDy;
+      const nDist = spatialIndex.neighborDist;
+
+      for (let k = 0; k < neighbors.length; k++) {
+        const n = neighbors[k];
         if (n.id === p.id) continue;
 
-        const info = spatialIndex.wrappedDistance(p.x, p.y, n.x, n.y);
-        const dist = info.dist;
+        const dist = nDist[k];
         if (dist < 0.1) continue;
 
         // Field of view check (~270 degrees, exclude directly behind)
-        const dirX = info.dx / dist;
-        const dirY = info.dy / dist;
+        const dirX = nDx[k] / dist;
+        const dirY = nDy[k] / dist;
         const dot = headingX * dirX + headingY * dirY;
         if (dot < -0.5) continue; // Behind us
 
@@ -109,8 +115,8 @@ export class BoidsBehavior extends Behavior<BoidsParams> {
 
         // COHESION: accumulate neighbor positions
         if (dist < this.params.cohesionRadius) {
-          cohX += info.dx;
-          cohY += info.dy;
+          cohX += nDx[k];
+          cohY += nDy[k];
           cohCount++;
         }
       }

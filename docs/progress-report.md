@@ -1,6 +1,58 @@
 # Progress Report
 
-Last updated: 2026-04-01
+Last updated: 2026-08-14
+
+---
+
+## Swarm Dynamics Performance Pass
+
+**Date:** 2026-08-14
+
+### Goal
+
+Optimize the Swarm Dynamics visualizer (`packages/viz-dots`) for smoother animation and larger particle counts, with **no substantive changes** to model behavior.
+
+### What Changed (performance only, semantics preserved)
+
+**Model layer:**
+- `SpatialHash`: replaced per-call allocation of image points, result arrays, and dedup Sets with precomputed affine image transforms, reusable buffers, and cell-level dedup. Added an O(1) minimal-image fast path for torus/cylinder topologies (Möbius still uses the transform loop). `queryRadius` now also exposes parallel `neighborDx/neighborDy/neighborDist` arrays.
+- `BoidsBehavior` / `ParticleLifeBehavior`: consume the offsets computed by `queryRadius` instead of recomputing `wrappedDistance` per neighbor (previously each neighbor distance was computed twice, with allocations).
+- `ParticleLifeBehavior`: attraction matrix sanitized once per step into a dense array instead of optional-chaining + `Number.isFinite` per pair.
+- `SwarmalatorsBehavior`: one `cos`/`sin` per pair instead of four, via angle-sum identities over the precomputed q_x/q_theta offset tables; `Math.hypot` replaced with `Math.sqrt` in the O(N²) pair loop (identical at pixel scales).
+- `DotsModel.step`: particles and trail arrays updated in place (forces are computed fully from pre-step state first, so dynamics are unchanged); a fresh state wrapper is still returned each frame for React. Removes ~4 object allocations per particle per frame.
+
+**Render layer (`DotsCanvas`):**
+- Canvas backing buffer is now resized only when dimensions/DPR change (it was reallocated every frame, which also reset context state).
+- World-to-screen transform inlined (no per-particle point objects).
+- Speed/phase color hues quantized to whole degrees with cached strings, so fills batch by color (previously every particle produced a unique `hsl()` string, defeating batching entirely for those schemes).
+- Arrows (boids) batched by color into one path + one fill per color, like circles.
+
+### Measured Results (simulation step, Node, same seed)
+
+| Model | N | Before | After | Speedup |
+|-------|-----|--------|-------|---------|
+| Boids | 1,000 | 23.5 ms | 3.3 ms | 7.0× |
+| Boids | 5,000 | 978 ms | 76 ms | 12.8× |
+| Particle Life | 800 | 21.0 ms | 4.4 ms | 4.7× |
+| Particle Life | 5,000 | 709 ms | 136 ms | 5.2× |
+| Friends & Enemies | 5,000 | 1.10 ms | 0.63 ms | 1.7× |
+| Friends & Enemies | 50,000 | 31.9 ms | 9.9 ms | 3.2× |
+| Swarmalators | 1,000 | 43.7 ms | 27.8 ms | 1.6× |
+
+Rendering gains (canvas realloc removal, color batching) are additional and not captured by these Node-only numbers.
+
+### Cap Change
+
+- `MAX_PARTICLES['friends-enemies']` raised 5,000 → 20,000. The model is O(N) (one friend + one enemy per particle) and now runs at ~400 steps/s at 20,000 particles. Other caps unchanged: boids and particle-life remain O(N·neighbors) and swarmalators O(N²), so their existing caps already exceed real-time range.
+
+### Tests
+
+- All 261 tests pass (36 files), including `professional-regression.test.ts` topology seam tests.
+- One bug caught during the pass by the existing test suite: the initial transform-table ordering for the torus omitted the identity-first invariant; fixed before commit.
+
+### Scientific Integrity
+
+No equations, parameters, integration order, or published-model semantics were altered. Trig identities and minimal-image arithmetic are mathematically equivalent; hue quantization (≤0.5°) is visually imperceptible.
 
 ---
 

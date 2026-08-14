@@ -61,20 +61,35 @@ export class ParticleLifeBehavior extends Behavior<ParticleLifeParams> {
     const radius = this.params.interactionRadius;
     const forces = particles.map(() => ({ ax: 0, ay: 0 }));
 
+    // Dense sanitized copy of the attraction matrix, so the inner pair loop
+    // does a plain array lookup instead of optional chaining + isFinite.
+    const numTypes = this.params.numTypes;
+    const matrix: number[][] = [];
+    for (let i = 0; i < numTypes; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < numTypes; j++) row.push(this.attraction(i, j));
+      matrix.push(row);
+    }
+
     // Evaluate each geometric pair once. The interaction matrix is directed,
     // so the two force magnitudes can differ even though the geometry is shared.
     for (const p of particles) {
       const neighbors = spatialIndex.queryRadius(p.x, p.y, radius);
-      for (const q of neighbors) {
+      // Shortest quotient offsets already computed by queryRadius.
+      const nDx = spatialIndex.neighborDx;
+      const nDy = spatialIndex.neighborDy;
+      const nDist = spatialIndex.neighborDist;
+      for (let k = 0; k < neighbors.length; k++) {
+        const q = neighbors[k];
         if (q.id <= p.id) continue;
-        const info = spatialIndex.wrappedDistance(p.x, p.y, q.x, q.y);
-        if (info.dist <= 0 || info.dist >= radius) continue;
+        const dist = nDist[k];
+        if (dist <= 0 || dist >= radius) continue;
 
-        const r = info.dist / radius;
-        const ux = info.dx / info.dist;
-        const uy = info.dy / info.dist;
-        const fp = FORCE_SCALE * particleLifeForce(this.attraction(p.type, q.type), r);
-        const fq = FORCE_SCALE * particleLifeForce(this.attraction(q.type, p.type), r);
+        const r = dist / radius;
+        const ux = nDx[k] / dist;
+        const uy = nDy[k] / dist;
+        const fp = FORCE_SCALE * particleLifeForce(matrix[p.type][q.type], r);
+        const fq = FORCE_SCALE * particleLifeForce(matrix[q.type][p.type], r);
 
         forces[p.id].ax += ux * fp;
         forces[p.id].ay += uy * fp;

@@ -22,24 +22,6 @@ interface Camera {
 }
 
 /**
- * Transform world coordinates to screen coordinates.
- */
-function worldToScreen(
-  wx: number,
-  wy: number,
-  camera: Camera,
-  screenWidth: number,
-  screenHeight: number
-): { x: number; y: number } {
-  const screenCenterX = screenWidth / 2;
-  const screenCenterY = screenHeight / 2;
-  return {
-    x: screenCenterX + (wx - camera.centerX) * camera.scale,
-    y: screenCenterY + (wy - camera.centerY) * camera.scale,
-  };
-}
-
-/**
  * Transform screen coordinates to world coordinates.
  */
 function screenToWorld(
@@ -103,6 +85,18 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
     scale: 1,
   });
 
+  // Resize the backing buffer only when dimensions change. Setting
+  // canvas.width reallocates the buffer and resets all context state, so
+  // doing it every frame is one of the most expensive per-frame costs.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }, [width, height, dpr]);
+
   // Render loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -111,12 +105,8 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // High DPI setup
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.scale(dpr, dpr);
+    // High DPI transform (idempotent, unlike ctx.scale)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Clear with background
     ctx.fillStyle = options.backgroundColor;
@@ -130,9 +120,12 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
     };
     cameraRef.current = camera;
 
-    // Helper to transform world to screen
-    const toScreen = (wx: number, wy: number) =>
-      worldToScreen(wx, wy, camera, width, height);
+    // World-to-screen transform, inlined in the loops below to avoid
+    // allocating a point object per particle per frame:
+    //   sx = offsetX + wx * scale;  sy = offsetY + wy * scale
+    const scale = camera.scale;
+    const offsetX = width / 2 - camera.centerX * scale;
+    const offsetY = height / 2 - camera.centerY * scale;
 
     // Draw trails (if enabled)
     if (options.showTrails && state.trails) {
@@ -152,8 +145,7 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
 
         ctx.strokeStyle = colorWithAlpha(baseColor, options.trailOpacity);
         ctx.beginPath();
-        const start = toScreen(trail[0].x, trail[0].y);
-        ctx.moveTo(start.x, start.y);
+        ctx.moveTo(offsetX + trail[0].x * scale, offsetY + trail[0].y * scale);
 
         for (let j = 1; j < trail.length; j++) {
           const prev = trail[j - 1];
@@ -163,15 +155,16 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
           const dx = Math.abs(curr.x - prev.x);
           const dy = Math.abs(curr.y - prev.y);
 
-          const screenCurr = toScreen(curr.x, curr.y);
+          const sx = offsetX + curr.x * scale;
+          const sy = offsetY + curr.y * scale;
 
           if (dx > wrapThresholdX || dy > wrapThresholdY) {
             // Wrapped around - end current path and start new one
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(screenCurr.x, screenCurr.y);
+            ctx.moveTo(sx, sy);
           } else {
-            ctx.lineTo(screenCurr.x, screenCurr.y);
+            ctx.lineTo(sx, sy);
           }
         }
 
@@ -179,68 +172,68 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
       }
     }
 
-    // Draw particles
+    // Draw particles, batched by fill color: one path + one fill per color
+    // instead of per particle. getColor quantizes dynamic hues so the number
+    // of distinct colors stays small.
     // Dot size is independent of zoom - controlled by separate Dot Size slider
     const scaledRadius = options.particleRadius;
+    const colorGroups = new Map<string, Particle[]>();
+    for (const p of state.particles) {
+      const color = getColor(p, options);
+      const group = colorGroups.get(color);
+      if (group) group.push(p);
+      else colorGroups.set(color, [p]);
+    }
 
     if (options.showArrows) {
       // Draw arrows (triangles pointing in velocity direction)
       const arrowLength = scaledRadius * 2.5;
       const arrowWidth = scaledRadius * 1.5;
 
-      for (const p of state.particles) {
-        const color = getColor(p, options);
-        const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        const screen = toScreen(p.x, p.y);
-
-        if (speed > 0.01) {
-          // Normalize velocity for direction
-          const dx = p.vx / speed;
-          const dy = p.vy / speed;
-
-          // Arrow tip (in screen coords)
-          const tipX = screen.x + dx * arrowLength;
-          const tipY = screen.y + dy * arrowLength;
-
-          // Arrow base corners (perpendicular to direction)
-          const perpX = -dy;
-          const perpY = dx;
-          const baseX = screen.x - dx * arrowLength * 0.5;
-          const baseY = screen.y - dy * arrowLength * 0.5;
-
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.moveTo(tipX, tipY);
-          ctx.lineTo(baseX + perpX * arrowWidth, baseY + perpY * arrowWidth);
-          ctx.lineTo(baseX - perpX * arrowWidth, baseY - perpY * arrowWidth);
-          ctx.closePath();
-          ctx.fill();
-        } else {
-          // Stationary: draw circle
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(screen.x, screen.y, scaledRadius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    } else {
-      // Batch draw circles by color for performance
-      const colorGroups = new Map<string, Particle[]>();
-      for (const p of state.particles) {
-        const color = getColor(p, options);
-        if (!colorGroups.has(color)) {
-          colorGroups.set(color, []);
-        }
-        colorGroups.get(color)!.push(p);
-      }
-
       for (const [color, particles] of colorGroups) {
         ctx.fillStyle = color;
         ctx.beginPath();
         for (const p of particles) {
-          const screen = toScreen(p.x, p.y);
-          ctx.moveTo(screen.x + scaledRadius, screen.y);
-          ctx.arc(screen.x, screen.y, scaledRadius, 0, Math.PI * 2);
+          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          const sx = offsetX + p.x * scale;
+          const sy = offsetY + p.y * scale;
+
+          if (speed > 0.01) {
+            // Normalize velocity for direction
+            const dx = p.vx / speed;
+            const dy = p.vy / speed;
+
+            // Arrow tip (in screen coords)
+            const tipX = sx + dx * arrowLength;
+            const tipY = sy + dy * arrowLength;
+
+            // Arrow base corners (perpendicular to direction)
+            const perpX = -dy;
+            const perpY = dx;
+            const baseX = sx - dx * arrowLength * 0.5;
+            const baseY = sy - dy * arrowLength * 0.5;
+
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(baseX + perpX * arrowWidth, baseY + perpY * arrowWidth);
+            ctx.lineTo(baseX - perpX * arrowWidth, baseY - perpY * arrowWidth);
+            ctx.closePath();
+          } else {
+            // Stationary: draw circle
+            ctx.moveTo(sx + scaledRadius, sy);
+            ctx.arc(sx, sy, scaledRadius, 0, Math.PI * 2);
+          }
+        }
+        ctx.fill();
+      }
+    } else {
+      for (const [color, particles] of colorGroups) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        for (const p of particles) {
+          const sx = offsetX + p.x * scale;
+          const sy = offsetY + p.y * scale;
+          ctx.moveTo(sx + scaledRadius, sy);
+          ctx.arc(sx, sy, scaledRadius, 0, Math.PI * 2);
         }
         ctx.fill();
       }
@@ -250,12 +243,11 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
     if (interactionRef.current.active) {
       const { x, y, type } = interactionRef.current;
       // x,y are in world coords, transform to screen for drawing
-      const screenPos = toScreen(x, y);
       ctx.strokeStyle = type === 'attract' ? '#00aa00' : '#aa0000';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, 30, 0, Math.PI * 2);
+      ctx.arc(offsetX + x * scale, offsetY + y * scale, 30, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -334,6 +326,11 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
   );
 };
 
+// Lazily-built lookup tables of quantized hue strings, so the hot render path
+// does not build a new color string per particle per frame.
+const SPEED_HUE_CACHE: string[] = [];
+const PHASE_HUE_CACHE: string[] = [];
+
 /**
  * Get color for a particle based on render options.
  */
@@ -345,17 +342,20 @@ function getColor(particle: Particle, options: RenderOptions): string {
 
     case 'speed': {
       const speed = Math.sqrt(particle.vx ** 2 + particle.vy ** 2);
-      // Map speed to hue (slow=blue, fast=red)
+      // Map speed to hue (slow=blue, fast=red). Hue is rounded to a whole
+      // degree (imperceptible) so particles share color strings and the
+      // renderer can batch fills by color.
       const normalized = Math.min(1, speed / 5);
-      const hue = 240 - normalized * 240; // 240 (blue) to 0 (red)
-      return `hsl(${hue}, 70%, 50%)`;
+      const hue = Math.round(240 - normalized * 240); // 240 (blue) to 0 (red)
+      return SPEED_HUE_CACHE[hue] ?? (SPEED_HUE_CACHE[hue] = `hsl(${hue}, 70%, 50%)`);
     }
 
     case 'phase': {
       if (particle.phase !== undefined) {
-        // Map phase [-π, π] to hue [0, 360] for rainbow colors
-        const hue = ((particle.phase + Math.PI) / (Math.PI * 2)) * 360;
-        return `hsl(${hue}, 80%, 55%)`;
+        // Map phase [-π, π] to hue [0, 360] for rainbow colors, rounded to a
+        // whole degree so fills can be batched by color.
+        const hue = Math.round(((particle.phase + Math.PI) / (Math.PI * 2)) * 360) % 360;
+        return PHASE_HUE_CACHE[hue] ?? (PHASE_HUE_CACHE[hue] = `hsl(${hue}, 80%, 55%)`);
       }
       return '#666';
     }

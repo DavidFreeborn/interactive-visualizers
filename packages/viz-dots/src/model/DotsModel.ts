@@ -84,16 +84,30 @@ export class DotsModel {
       rng
     );
 
-    const newParticles: Particle[] = [];
-    const newTrails: Array<Array<{ x: number; y: number }>> = [];
     const firstOrder = this.behavior.integrationMode === 'first-order';
     const boids = this.config.behaviorParams.type === 'boids'
       ? this.config.behaviorParams as BoidsParams
       : null;
+    const maxTrailLength = renderOptions?.showTrails ? renderOptions.trailLength : 1;
+    const scratch = this.boundaryScratch;
 
+    // Particles and trail arrays are updated in place: all forces above were
+    // computed from the pre-step state, so mutating here cannot leak the new
+    // positions into this step's dynamics. A fresh state wrapper is still
+    // returned each frame so reference-equality consumers see the change.
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       const m = motion[i];
+
+      // Record the pre-step position on the trail before moving.
+      const trail = trails[i];
+      if (maxTrailLength === 1 && trail.length === 1) {
+        trail[0].x = p.x;
+        trail[0].y = p.y;
+      } else {
+        trail.push({ x: p.x, y: p.y });
+        if (trail.length > maxTrailLength) trail.splice(0, trail.length - maxTrailLength);
+      }
 
       // First-order published maps/ODEs specify position velocity directly.
       // Acceleration models instead update persistent velocity.
@@ -114,48 +128,46 @@ export class DotsModel {
         }
       }
 
-      let x = p.x + vx;
-      let y = p.y + vy;
-      ({ x, y, vx, vy } = this.applyBoundary(x, y, vx, vy));
+      scratch.x = p.x + vx;
+      scratch.y = p.y + vy;
+      scratch.vx = vx;
+      scratch.vy = vy;
+      this.applyBoundary(scratch);
 
-      newParticles.push({ ...p, x, y, vx, vy });
-
-      const trail = [...trails[i], { x: p.x, y: p.y }];
-      const maxTrailLength = renderOptions?.showTrails ? renderOptions.trailLength : 1;
-      if (trail.length > maxTrailLength) trail.splice(0, trail.length - maxTrailLength);
-      newTrails.push(trail);
+      p.x = scratch.x;
+      p.y = scratch.y;
+      p.vx = scratch.vx;
+      p.vy = scratch.vy;
     }
 
-    this.behavior.postStep(newParticles, rng);
-    return { frame: state.frame + 1, particles: newParticles, trails: newTrails };
+    this.behavior.postStep(particles, rng);
+    return { frame: state.frame + 1, particles, trails };
   }
 
-  private applyBoundary(x: number, y: number, vx: number, vy: number) {
+  // Reused per-particle by step() to avoid allocating a boundary result object.
+  private boundaryScratch = { x: 0, y: 0, vx: 0, vy: 0 };
+
+  private applyBoundary(s: { x: number; y: number; vx: number; vy: number }): void {
     const topology = this.config.topology;
     const w = this.config.width;
     const h = this.config.height;
+    let { x, y, vx, vy } = s;
 
-    if (topology === 'plane') return { x, y, vx, vy };
+    if (topology === 'plane') return;
 
     if (topology === 'torus') {
-      x = ((x % w) + w) % w;
-      y = ((y % h) + h) % h;
-      return { x, y, vx, vy };
+      s.x = ((x % w) + w) % w;
+      s.y = ((y % h) + h) % h;
+      return;
     }
 
     if (topology === 'cylinder-x') {
       x = ((x % w) + w) % w;
       ({ value: y, velocity: vy } = reflect(y, vy, h));
-      return { x, y, vx, vy };
-    }
-
-    if (topology === 'cylinder-y') {
+    } else if (topology === 'cylinder-y') {
       ({ value: x, velocity: vx } = reflect(x, vx, w));
       y = ((y % h) + h) % h;
-      return { x, y, vx, vy };
-    }
-
-    if (topology === 'mobius-x') {
+    } else if (topology === 'mobius-x') {
       while (x < 0 || x >= w) {
         if (x < 0) x += w;
         else x -= w;
@@ -163,10 +175,7 @@ export class DotsModel {
         vy = -vy;
       }
       ({ value: y, velocity: vy } = reflect(y, vy, h));
-      return { x, y, vx, vy };
-    }
-
-    if (topology === 'mobius-y') {
+    } else if (topology === 'mobius-y') {
       while (y < 0 || y >= h) {
         if (y < 0) y += h;
         else y -= h;
@@ -174,12 +183,15 @@ export class DotsModel {
         vx = -vx;
       }
       ({ value: x, velocity: vx } = reflect(x, vx, w));
-      return { x, y, vx, vy };
+    } else {
+      ({ value: x, velocity: vx } = reflect(x, vx, w));
+      ({ value: y, velocity: vy } = reflect(y, vy, h));
     }
 
-    ({ value: x, velocity: vx } = reflect(x, vx, w));
-    ({ value: y, velocity: vy } = reflect(y, vy, h));
-    return { x, y, vx, vy };
+    s.x = x;
+    s.y = y;
+    s.vx = vx;
+    s.vy = vy;
   }
 
   computeMetrics(state: DotsState): DotsMetrics {

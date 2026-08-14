@@ -21,6 +21,13 @@ import { Behavior } from './Behavior';
 const DT = 0.1;
 const R_MIN_UNITS = 0.02;
 
+// Frequency-coupling phase offsets, indexed by s = |sign(omega_j) - sign(omega_i)|
+// in {0, 1, 2}: qx = s*pi/2 and qtheta = s*pi/4 (Ceron et al. 2023).
+const QX_COS = [1, Math.cos(Math.PI / 2), Math.cos(Math.PI)];
+const QX_SIN = [0, Math.sin(Math.PI / 2), Math.sin(Math.PI)];
+const QT_COS = [1, Math.cos(Math.PI / 4), Math.cos(Math.PI / 2)];
+const QT_SIN = [0, Math.sin(Math.PI / 4), Math.sin(Math.PI / 2)];
+
 export class SwarmalatorsBehavior extends Behavior<SwarmalatorsParams> {
   readonly integrationMode = 'first-order' as const;
   private phaseDelta: number[] = [];
@@ -105,7 +112,9 @@ export class SwarmalatorsBehavior extends Behavior<SwarmalatorsParams> {
         const q = particles[j];
         const dxPx = q.x - p.x;
         const dyPx = q.y - p.y;
-        const rawPx = Math.hypot(dxPx, dyPx);
+        // sqrt instead of Math.hypot: identical result at pixel scales (no
+        // overflow risk) and much faster in this O(N^2) inner loop.
+        const rawPx = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
         const r = Math.max(rawPx / U, R_MIN_UNITS);
         if (sigma != null && sigma > 0 && r >= sigma) continue;
 
@@ -120,24 +129,31 @@ export class SwarmalatorsBehavior extends Behavior<SwarmalatorsParams> {
           uy = dyPx / rawPx;
         }
 
+        // One cos/sin evaluation per pair instead of four: the frequency-
+        // coupling offsets qx = s*pi/2 and qtheta = s*pi/4 (s = |sign diff| in
+        // {0,1,2}) are folded in via angle-sum identities with the precomputed
+        // QX_/QT_ tables. Same math as cos(+-dtheta - qx), sin(+-dtheta - qtheta).
         const dtheta = q.phase! - p.phase!;
-        let qx = 0;
-        let qtheta = 0;
+        const cosD = Math.cos(dtheta);
+        const sinD = Math.sin(dtheta);
+        let s = 0;
         if (model === 'diverse-2023' && this.params.frequencyCoupling) {
-          const signDifference = Math.abs(Math.sign(q.omega ?? 0) - Math.sign(p.omega ?? 0));
-          qx = Math.PI / 2 * signDifference;
-          qtheta = Math.PI / 4 * signDifference;
+          s = Math.abs(Math.sign(q.omega ?? 0) - Math.sign(p.omega ?? 0));
         }
+        const cosQx = QX_COS[s];
+        const sinQx = QX_SIN[s];
+        const cosQt = QT_COS[s];
+        const sinQt = QT_SIN[s];
 
-        const pairI = 1 + J * Math.cos(dtheta - qx) - 1 / r;
-        const pairJ = 1 + J * Math.cos(-dtheta - qx) - 1 / r;
+        const pairI = 1 + J * (cosD * cosQx + sinD * sinQx) - 1 / r;
+        const pairJ = 1 + J * (cosD * cosQx - sinD * sinQx) - 1 / r;
         xdot[i].x += ux * pairI / n;
         xdot[i].y += uy * pairI / n;
         xdot[j].x -= ux * pairJ / n;
         xdot[j].y -= uy * pairJ / n;
 
-        thetaDot[i] += K / n * Math.sin(dtheta - qtheta) / r;
-        thetaDot[j] += K / n * Math.sin(-dtheta - qtheta) / r;
+        thetaDot[i] += K / n * (sinD * cosQt - cosD * sinQt) / r;
+        thetaDot[j] += K / n * (-sinD * cosQt - cosD * sinQt) / r;
       }
     }
 

@@ -201,7 +201,9 @@ export const DEFAULT_CONFIG: DotsConfig = {
 /** Browser-facing ceilings. Scientific source counts may be lower or higher. */
 export const MAX_PARTICLES: Record<BehaviorType, number> = {
   boids: 5000,
-  'friends-enemies': 5000,
+  // O(N) dynamics (one friend + one enemy per particle): comfortably real-time
+  // at this count after the 2026-08 performance pass.
+  'friends-enemies': 20000,
   'particle-life': 5000,
   swarmalators: 5000,
 };
