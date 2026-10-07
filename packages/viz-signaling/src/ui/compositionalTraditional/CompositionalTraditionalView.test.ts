@@ -18,6 +18,30 @@ function getRoundValue(): number {
 }
 
 describe("CompositionalTraditionalView", () => {
+  it("a new random run discards pending receiver and bias changes", () => {
+    render(React.createElement(CompositionalTraditionalView));
+    fireEvent.change(screen.getByTestId("compositional-model-select"), { target: { value: "minimalist" } });
+    fireEvent.click(screen.getByTestId("compositional-signaling-bias-checkbox"));
+    expect(screen.getByText("Unapplied changes")).toBeTruthy();
+    fireEvent.click(screen.getByText("New random run"));
+    expect((screen.getByTestId("compositional-model-select") as HTMLSelectElement).value).toBe("traditional");
+    expect((screen.getByTestId("compositional-signaling-bias-checkbox") as HTMLInputElement).checked).toBe(true);
+    expect(screen.queryByText("Unapplied changes")).toBeNull();
+    expect(getRoundValue()).toBe(0);
+  });
+
+  it("applying settings cancels the old round animation", () => {
+    vi.useFakeTimers();
+    render(React.createElement(CompositionalTraditionalView));
+    fireEvent.click(screen.getByText("Step"));
+    fireEvent.change(screen.getByTestId("compositional-model-select"), { target: { value: "minimalist" } });
+    fireEvent.click(screen.getByText("Restart with settings"));
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(getRoundValue()).toBe(0);
+    expect(screen.queryByText(/Success:|Failure:/)).toBeNull();
+    expect(screen.getByText("4x(2+2)x4 Minimalist model")).toBeTruthy();
+    vi.useRealTimers();
+  });
   it("renders the compositional app with joint mutual information public and richer diagnostics in debug", () => {
     render(React.createElement(CompositionalTraditionalView));
 
@@ -30,8 +54,8 @@ describe("CompositionalTraditionalView", () => {
     );
     expect(screen.getByText("Based on the models in")).toBeTruthy();
     expect(screen.queryByTestId("compositional-seed-input")).toBeNull();
-    expect(screen.getByText("Approximate Regime")).toBeTruthy();
-    expect(screen.getByText("Mutual information")).toBeTruthy();
+    expect(screen.getByText("Approximate regime")).toBeTruthy();
+    expect(screen.getByText("State-to-pair information")).toBeTruthy();
     expect(screen.queryByText("I(S ; M_A)")).toBeNull();
     expect(screen.queryByText("I(S ; M_B)")).toBeNull();
     expect(screen.queryByText("Expected success")).toBeNull();
@@ -66,7 +90,7 @@ describe("CompositionalTraditionalView", () => {
         .getAttribute("data-point-count"),
     ).toBe("2");
 
-    fireEvent.click(screen.getByText("Reset"));
+    fireEvent.click(screen.getByText("New random run"));
 
     await waitFor(() => {
       expect(getRoundValue()).toBe(0);
@@ -83,7 +107,7 @@ describe("CompositionalTraditionalView", () => {
     ) as HTMLInputElement;
     expect(seedInput.value).not.toBe("2147483648");
 
-    fireEvent.click(screen.getByText("Reset"));
+    fireEvent.click(screen.getByText("New random run"));
 
     await waitFor(() => {
       expect(
@@ -112,7 +136,7 @@ describe("CompositionalTraditionalView", () => {
 
     fireEvent.click(biasCheckbox);
     expect(biasCheckbox.checked).toBe(false);
-    fireEvent.click(screen.getByText("Apply config"));
+    fireEvent.click(screen.getByText("Restart with settings"));
 
     await waitFor(() => {
       expect(getRoundValue()).toBe(0);
@@ -122,10 +146,10 @@ describe("CompositionalTraditionalView", () => {
   it("renders a single public forgetting button without the old configuration controls", () => {
     render(React.createElement(CompositionalTraditionalView));
 
-    expect(screen.getByText("Apply Forgetting")).toBeTruthy();
+    expect(screen.getByText("Replace B0 message")).toBeTruthy();
     expect(
       screen.getByText(
-        'Replaces the sender\'s learned red message with the novel message "rouge".',
+        'Replaces Sender B’s B0 with a new message; states and actions stay the same.',
       ),
     ).toBeTruthy();
     expect(
@@ -141,7 +165,7 @@ describe("CompositionalTraditionalView", () => {
     expect(screen.queryByTestId("compositional-forgetting-panel")).toBeNull();
   });
 
-  it("applies forgetting, marks both charts, and relabels red as rouge", async () => {
+  it("applies forgetting, marks both charts, and preserves the state and action meanings", async () => {
     render(React.createElement(CompositionalTraditionalView));
 
     fireEvent.click(screen.getByTestId("compositional-apply-forgetting-button"));
@@ -149,12 +173,12 @@ describe("CompositionalTraditionalView", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'The sender\'s learned red message was replaced with the novel message "rouge".',
+          'Sender B’s B0 was replaced with a new message.',
         ),
       ).toBeTruthy();
     });
 
-    expect(screen.getAllByText("rouge dress").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("red dress").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByTestId("line-chart-marker-forgetting")).toHaveLength(
       2,
     );
@@ -175,17 +199,17 @@ describe("CompositionalTraditionalView", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'The sender\'s learned red message was replaced with the novel message "rouge".',
+          'Sender B’s B0 was replaced with a new message.',
         ),
       ).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Reset"));
+    fireEvent.click(screen.getByText("New random run"));
 
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Replaces the sender\'s learned red message with the novel message "rouge".',
+          'Replaces Sender B’s B0 with a new message; states and actions stay the same.',
         ),
       ).toBeTruthy();
     });
@@ -203,7 +227,7 @@ describe("CompositionalTraditionalView", () => {
     expect(screen.queryByText("rouge dress")).toBeNull();
   });
 
-  it("switching models resets the simulation and updates the visible model label", async () => {
+  it("stages a receiver change without losing results, then restarts explicitly", async () => {
     render(React.createElement(CompositionalTraditionalView));
 
     fireEvent.click(screen.getByText("Fast"));
@@ -216,14 +240,16 @@ describe("CompositionalTraditionalView", () => {
     fireEvent.change(screen.getByTestId("compositional-model-select"), {
       target: { value: "information-preserving-generalist" },
     });
+    expect(screen.getByText("Unapplied changes")).toBeTruthy();
+    expect(getRoundValue()).toBe(1);
+    expect(screen.getByText("4x(2+2)x4 Traditional model")).toBeTruthy();
+    fireEvent.click(screen.getByText("Restart with settings"));
 
     await waitFor(() => {
       expect(getRoundValue()).toBe(0);
     });
 
-    expect(
-      screen.getAllByText("4x(2+2)x4 Information-Preserving Generalist model"),
-    ).toHaveLength(2);
+    expect(screen.getByText("4x(2+2)x4 Information-Preserving Generalist model")).toBeTruthy();
     expect(
       screen.getByRole("link", {
         name: /David Peter Wallis Freeborn \(2025\)/,
@@ -264,7 +290,7 @@ describe("CompositionalTraditionalView", () => {
     render(React.createElement(CompositionalTraditionalView));
 
     fireEvent.click(screen.getByText("Step"));
-    fireEvent.click(screen.getByText("Reset"));
+    fireEvent.click(screen.getByText("New random run"));
 
     act(() => {
       vi.advanceTimersByTime(1200);
@@ -278,10 +304,10 @@ describe("CompositionalTraditionalView", () => {
   it("keeps the public status driven by the approximate regime label", () => {
     render(React.createElement(CompositionalTraditionalView));
 
-    const mutualInformationLabel = screen.getAllByText("Mutual information")[0];
-    const approximateRegimeLabel = screen.getByText("Approximate Regime");
+    const mutualInformationLabel = screen.getAllByText("State-to-pair information")[0];
+    const approximateRegimeLabel = screen.getByText("Approximate regime");
 
-    expect(screen.getByText("Approximate Regime")).toBeTruthy();
+    expect(screen.getByText("Approximate regime")).toBeTruthy();
     expect(screen.getByText("Not yet coordinated")).toBeTruthy();
     expect(
       screen.queryByText("Strict canonical traditional criterion"),
@@ -300,6 +326,8 @@ describe("CompositionalTraditionalView", () => {
     fireEvent.change(screen.getByTestId("compositional-model-select"), {
       target: { value: "minimalist" },
     });
+    expect(screen.getByText("Unapplied changes")).toBeTruthy();
+    fireEvent.click(screen.getByText("Restart with settings"));
     fireEvent.click(screen.getByText("Show"));
 
     expect(

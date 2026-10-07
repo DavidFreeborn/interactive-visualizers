@@ -203,8 +203,8 @@ export function SignalDiagram({
         </div>
       ) : null}
 
-      <div className="signal-diagram-scroll" tabIndex={0} role="region" aria-label="Signalling diagram; scroll horizontally to read all labels"><svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Signaling game diagram">
-        <rect x={0} y={0} width={width} height={height} rx={24} fill="#ffffff" />
+      <div className="signal-diagram-scroll classic-diagram" tabIndex={0} role="region" aria-label="Signalling diagram; scroll horizontally to read all labels"><svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Signaling game diagram">
+        <rect x={0} y={0} width={width} height={height} rx={2} fill="#ffffff" />
 
         {[stateX, messageX, actionX].map((x) => (
           <line
@@ -463,7 +463,7 @@ function AnimatedToken({
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
     position: 'relative',
-    borderRadius: 24,
+    borderRadius: 2,
     overflow: 'hidden',
     border: '1px solid #d6dce5',
     background: '#ffffff',
@@ -475,42 +475,42 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 1,
     maxWidth: 280,
     padding: '8px 10px',
-    borderRadius: 10,
+    borderRadius: 2,
     background: 'rgba(255, 255, 255, 0.98)',
     color: '#111111',
     border: '1px solid #d6dce5',
     fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-    fontSize: 12,
+    fontSize: 16,
     lineHeight: 1.35,
   },
   headerText: {
-    fontFamily: '"Helvetica Neue", "Segoe UI", sans-serif',
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
+    fontFamily: 'var(--tool-sans, system-ui, sans-serif)',
+    fontSize: 16,
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     fill: '#111111',
   },
   nodeCode: {
     fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-    fontSize: 12,
-    fontWeight: 700,
+    fontSize: 16,
+    fontWeight: 400,
     fill: '#111111',
   },
   nodeLabel: {
-    fontFamily: '"Helvetica Neue", "Segoe UI", sans-serif',
-    fontSize: 12,
-    fontWeight: 600,
+    fontFamily: 'var(--tool-sans, system-ui, sans-serif)',
+    fontSize: 16,
+    fontWeight: 400,
     fill: '#111111',
   },
   edgeLabel: {
     fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-    fontSize: 10,
+    fontSize: 16,
     fill: '#111111',
   },
   resultText: {
-    fontFamily: '"Helvetica Neue", "Segoe UI", sans-serif',
-    fontSize: 13,
-    fontWeight: 700,
+    fontFamily: 'var(--tool-sans, system-ui, sans-serif)',
+    fontSize: 16,
+    fontWeight: 400,
   },
 };

@@ -42,25 +42,24 @@ export function CompositionalTraditionalMetricsPanel({
   return (
     <div style={styles.stack}>
       <div style={styles.grid}>
-        <MetricCard label="Cumulative Success" value={formatPercentage(metrics.cumulativeSuccessRate)} />
-        <MetricCard label="Rolling Success" value={formatPercentage(metrics.rollingSuccessRate)} />
+        <MetricCard label="Cumulative success" value={formatPercentage(metrics.cumulativeSuccessRate)} />
+        <MetricCard label="Rolling success" value={formatPercentage(metrics.rollingSuccessRate)} />
         <MetricCard
-          label="Mutual information"
+          label="State-to-pair information"
           value={formatBits(metrics.jointMutualInformationBits)}
         />
         <MetricCard
-          label="Information lost"
+          label="Current information deficit"
           value={formatNullableBits(forgetting.diagnostics.informationLostBits)}
         />
         <MetricCard
-          label="Peak information lost"
+          label="Initial information drop"
           value={formatNullableBits(forgetting.diagnostics.peakInformationLostBits)}
         />
       </div>
       {forgetting.enabled ? (
         <p style={styles.note}>
-          Forgetting loss is measured against the pre-forgetting peak
-          signal-to-action information.
+          Replacement deficits compare pair-to-action information with its pre-replacement peak.
         </p>
       ) : null}
 
@@ -70,7 +69,7 @@ export function CompositionalTraditionalMetricsPanel({
           borderLeft: `4px solid ${regimeAccent(metrics.approximateRegime.kind)}`,
         }}
       >
-        <div style={styles.label}>Approximate Regime</div>
+        <div style={styles.label}>Approximate regime</div>
         <div style={styles.regimeValue}>{metrics.approximateRegime.label}</div>
         <p style={styles.regimeDetail}>{metrics.approximateRegime.detail}</p>
       </section>
@@ -103,37 +102,25 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: 12,
   },
-  card: {
-    borderRadius: 2,
-    padding: '16px 18px',
-    background: '#ffffff',
-    border: '1px solid #d6dce5',
-  },
-  regimeCard: {
-    borderRadius: 2,
-    padding: '16px 18px',
-    background: '#ffffff',
-    borderTop: '1px solid #d6dce5',
-    borderRight: '1px solid #d6dce5',
-    borderBottom: '1px solid #d6dce5',
-  },
+  card: { padding: "12px 0", borderTop: "1px solid #ccc" },
+  regimeCard: { padding: "4px 12px" },
   label: {
     fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#5b6470',
   },
   value: {
     marginTop: 8,
     fontSize: 22,
-    fontWeight: 700,
+    fontWeight: 400,
     color: '#111111',
   },
   regimeValue: {
     marginTop: 8,
     fontSize: 20,
-    fontWeight: 700,
+    fontWeight: 400,
     color: '#111111',
     fontFamily: 'var(--tool-serif, Georgia, serif)',
   },

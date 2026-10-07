@@ -134,7 +134,7 @@ export const DotsView: React.FC<DotsViewProps> = ({
           {metrics.spacePhaseOrder!==undefined&&<Metric label="Space-phase S" value={metrics.spacePhaseOrder.toFixed(2)}/>}
           <span style={styles.interactionHint}>Tap or drag to interact · Arrow keys move the focus · Enter toggles force · Escape releases</span>
         </div>
-        {info&&<details style={styles.infoPanel}><summary style={styles.infoPanelTitle}>Model and methodology: {info.name}</summary><p style={styles.infoPanelText}>{info.description}</p><p style={styles.infoPanelText}>These models illustrate collective behaviour from local interaction rules. They are not fitted predictions for a particular animal population or material.</p>{info.credit&&<p style={styles.credit}>{info.credit}</p>}</details>}
+
       </div>
       <div style={styles.controlsSection}>
         <DotsControls config={config} renderOptions={renderOptions} presets={PRESETS}
@@ -145,6 +145,7 @@ export const DotsView: React.FC<DotsViewProps> = ({
           onStep={handleStep} onReset={handleReset} onNewSeed={handleNewSeed}/>
       </div>
     </div>
+    {info&&<details className="tool-methodology"><summary>Model and methodology: {info.name}</summary><p>{info.description}</p><p>These models illustrate collective behaviour from local interaction rules. They are not fitted predictions for a particular animal population or material.</p>{info.credit&&<p>{info.credit}</p>}</details>}
   </div>;
 };
 

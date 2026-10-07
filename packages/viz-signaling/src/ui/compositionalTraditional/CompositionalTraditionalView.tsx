@@ -69,31 +69,8 @@ function sampleHistory(
     .map((index) => history[index]);
 }
 
-function replaceRedWithRouge(label: string): string {
-  return label.replace(/\bred\b/g, "rouge");
-}
-
-function derivePublicLabels(
-  forgetting: CompositionalForgettingSnapshot,
-): {
-  stateLabels: string[];
-  actionLabels: string[];
-} {
-  if (
-    forgetting.hasTriggered &&
-    forgetting.replacedSender === "b" &&
-    forgetting.replacedMessageIndex === 0
-  ) {
-    return {
-      stateLabels: PUBLIC_STATE_LABELS.map(replaceRedWithRouge),
-      actionLabels: PUBLIC_ACTION_LABELS.map(replaceRedWithRouge),
-    };
-  }
-
-  return {
-    stateLabels: [...PUBLIC_STATE_LABELS],
-    actionLabels: [...PUBLIC_ACTION_LABELS],
-  };
+function derivePublicLabels(_forgetting: CompositionalForgettingSnapshot): { stateLabels: string[]; actionLabels: string[] } {
+  return {stateLabels: [...PUBLIC_STATE_LABELS], actionLabels: [...PUBLIC_ACTION_LABELS]};
 }
 
 function deriveForgettingNote(
@@ -104,10 +81,10 @@ function deriveForgettingNote(
     forgetting.replacedSender === "b" &&
     forgetting.replacedMessageIndex === 0
   ) {
-    return "The sender's learned red message was replaced with the novel message \"rouge\".";
+    return "Sender B’s B0 was replaced with a new message.";
   }
 
-  return "Replaces the sender's learned red message with the novel message \"rouge\".";
+  return "Replaces Sender B’s B0 with a new message; states and actions stay the same.";
 }
 
 function shouldAnimateRound(snapshot: ViewSnapshot): boolean {
@@ -138,6 +115,7 @@ export function CompositionalTraditionalView({
   const [snapshot, setSnapshot] = useState(() =>
     runnerRef.current.getSnapshot(),
   );
+  const [modelTypeInput, setModelTypeInput] = useState(snapshot.modelType);
   const [seedInput, setSeedInput] = useState(snapshot.config.seed.toString());
   const [signalingBiasEnabledInput, setSignalingBiasEnabledInput] = useState(
     snapshot.config.signalingBiasEnabled,
@@ -289,6 +267,7 @@ export function CompositionalTraditionalView({
     try {
       const nextSnapshot = runnerRef.current.updateConfig({
         seed: parsedSeed,
+        modelType: modelTypeInput,
         signalingBiasEnabled: signalingBiasEnabledInput,
         forgetting: PUBLIC_FORGETTING_CONFIG,
       });
@@ -310,14 +289,7 @@ export function CompositionalTraditionalView({
   }
 
   function handleModelTypeChange(nextModelType: CompositionalModelType): void {
-    pauseAndClear();
-    setErrorMessage(null);
-    commitSnapshot(
-      runnerRef.current.updateConfig({
-        modelType: nextModelType,
-        forgetting: PUBLIC_FORGETTING_CONFIG,
-      }),
-    );
+    setModelTypeInput(nextModelType);
   }
 
   function handlePlayPause(): void {
@@ -340,6 +312,8 @@ export function CompositionalTraditionalView({
   }
 
   function handleReset(): void {
+    setModelTypeInput(snapshot.modelType);
+    setSignalingBiasEnabledInput(snapshot.config.signalingBiasEnabled);
     pauseAndClear();
     setErrorMessage(null);
     commitSnapshot(runnerRef.current.updateConfig({ seed: createRandomSeed() }));
@@ -365,6 +339,7 @@ export function CompositionalTraditionalView({
     COMPOSITIONAL_MODEL_OPTIONS.find(
       (option) => option.type === snapshot.modelType,
     ) ?? COMPOSITIONAL_MODEL_OPTIONS[0];
+  const pendingModel = COMPOSITIONAL_MODEL_OPTIONS.find(option => option.type === modelTypeInput) ?? currentModel;
   const { stateLabels, actionLabels } = derivePublicLabels(snapshot.forgetting);
   const forgettingNote = deriveForgettingNote(snapshot.forgetting);
   const forgettingMarkers =
@@ -382,26 +357,14 @@ export function CompositionalTraditionalView({
       : [];
 
   return (
-    <div style={styles.page}>
+    <div className="signalling-tool" style={styles.page}>
       <header style={styles.header}>
         <div style={styles.headerTextBlock}>
           <h1 style={styles.title}>Compositional signaling games</h1>
           <div
             style={styles.modelLine}
           >{`4x(2+2)x4 ${currentModel.label} model`}</div>
-          <div style={styles.referenceLine}>
-            <span style={styles.referencePrefix}>Based on the models in</span>
-            <cite style={styles.referenceText}>
-              <a
-                href={currentModel.referenceUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={styles.referenceLink}
-              >
-                {currentModel.reference}
-              </a>
-            </cite>
-          </div>
+
         </div>
         <div style={styles.statusGroup}>
           <div style={styles.roundChip}>
@@ -417,6 +380,38 @@ export function CompositionalTraditionalView({
       </header>
 
       <div className="signal-layout" style={styles.layout}>
+        <div className="signal-right" style={styles.rightColumn}>
+
+          <CompositionalTraditionalControls
+            hasPendingChanges={modelTypeInput !== snapshot.modelType || signalingBiasEnabledInput !== snapshot.config.signalingBiasEnabled || seedInput !== snapshot.config.seed.toString()}
+            modelType={modelTypeInput}
+            modelLabel={pendingModel.label}
+            modelDescription={pendingModel.description}
+            signalingBiasEnabled={signalingBiasEnabledInput}
+            canApplyForgettingNow={!snapshot.forgetting.hasTriggered}
+            forgettingNote={forgettingNote}
+            errorMessage={errorMessage}
+            isPlaying={playback.isPlaying}
+            isBusy={animationsEnabled && animation.phase !== "idle"}
+            speed={speed}
+            animationsEnabled={animationsEnabled}
+            onModelTypeChange={handleModelTypeChange}
+            onSignalingBiasEnabledChange={setSignalingBiasEnabledInput}
+            onApplyConfig={applyConfiguration}
+            onApplyForgettingNow={handleApplyForgettingNow}
+            onPlayPause={handlePlayPause}
+            onStepOne={handleStepOne}
+            onReset={handleReset}
+            onSpeedChange={(nextSpeed) => {
+              pauseAndClear();
+              setSpeed(nextSpeed);
+            }}
+            onAnimationsChange={(value) => {
+              pauseAndClear();
+              setAnimationsEnabled(value);
+            }}
+          />
+        </div>
         <div className="signal-left" style={styles.leftColumn}>
           <CompositionalTraditionalDiagram
             config={snapshot.config}
@@ -487,49 +482,19 @@ export function CompositionalTraditionalView({
               />
             </section>
           </div>
-        </div>
-
-        <div className="signal-right" style={styles.rightColumn}>
           <CompositionalTraditionalMetricsPanel
             metrics={snapshot.metrics}
             forgetting={snapshot.forgetting}
-          />
-          <CompositionalTraditionalControls
-            modelType={snapshot.modelType}
-            modelLabel={currentModel.label}
-            modelDescription={currentModel.description}
-            signalingBiasEnabled={signalingBiasEnabledInput}
-            canApplyForgettingNow={!snapshot.forgetting.hasTriggered}
-            forgettingNote={forgettingNote}
-            errorMessage={errorMessage}
-            isPlaying={playback.isPlaying}
-            isBusy={animationsEnabled && animation.phase !== "idle"}
-            speed={speed}
-            animationsEnabled={animationsEnabled}
-            onModelTypeChange={handleModelTypeChange}
-            onSignalingBiasEnabledChange={setSignalingBiasEnabledInput}
-            onApplyConfig={applyConfiguration}
-            onApplyForgettingNow={handleApplyForgettingNow}
-            onPlayPause={handlePlayPause}
-            onStepOne={handleStepOne}
-            onReset={handleReset}
-            onSpeedChange={(nextSpeed) => {
-              pauseAndClear();
-              setSpeed(nextSpeed);
-            }}
-            onAnimationsChange={(value) => {
-              pauseAndClear();
-              setAnimationsEnabled(value);
-            }}
           />
         </div>
       </div>
 
       <section style={styles.debugSection}>
         <div style={styles.debugHeader}>
-          <h2 style={styles.debugTitle}>Debug</h2>
+          <h2 style={styles.debugTitle}>Advanced controls</h2>
           <button
             type="button"
+            aria-expanded={debugMode}
             onClick={() => setDebugMode((currentValue) => !currentValue)}
             style={styles.debugToggle}
           >
@@ -541,7 +506,7 @@ export function CompositionalTraditionalView({
           <div style={styles.debugContent}>
             <div style={styles.debugGrid}>
               <section style={styles.debugCard}>
-                <h3 style={styles.debugCardTitle}>Debug Controls</h3>
+                <h3 style={styles.debugCardTitle}>Seed and display</h3>
                 <label style={styles.debugLabel}>
                   Seed
                   <input
@@ -567,7 +532,7 @@ export function CompositionalTraditionalView({
                   onClick={applyConfiguration}
                   style={styles.debugButton}
                 >
-                  Apply debug settings
+                  Apply all settings and restart
                 </button>
               </section>
               <TraditionalDebugDiagnostics
@@ -640,6 +605,28 @@ export function CompositionalTraditionalView({
           </div>
         ) : null}
       </section>
+      <details className="tool-methodology"><summary>Model and methodology</summary>
+        <h3>States, messages and actions</h3><p>Four equally likely states combine two binary features. Both senders observe the whole state and independently choose one of two messages. The receiver sees their pair and chooses one of four actions. Correct choices reinforce the sampled sender and receiver associations.</p>
+        <h3>Receiver models</h3><p>Traditional learns an action distribution for each message pair. Minimalist learns associations between individual messages and actions, combining their scores through a softmax with temperature 5. Both Generalist variants learn pair associations, individual-message associations and observation counts. They behave identically before message replacement; their replacement rules differ.</p>
+        <p>The optional signalling bias changes learning beyond the basic reward update. Traditional and Generalist weaken competing associations after success. Minimalist also uses the stipulated feature structure to favour compatible associations across states and actions. This additional structure matters when interpreting apparent compositional organisation.</p>
+        <h3>Message replacement</h3><p>The replacement experiment introduces a new token in place of Sender B’s B0. It does not change the states or correct actions, and B0 need not have acquired any particular meaning. Traditional resets the affected pair associations. Minimalist resets the replaced token’s individual association while retaining the other component. Information-Erasing Generalist initialises affected pairs without learned preferences; Information-Preserving Generalist reconstructs them from evidence for the surviving component. This reconstruction is an application-specific implementation of an independence-style idea for this fixed example.</p>
+        <h3>Reading the results</h3><p>State-to-pair information measures how informative messages are about states. The replacement experiment instead measures pair-to-action information. Initial information drop is the pre-replacement peak of that second quantity minus its immediate post-replacement value, clipped at zero. Current information deficit compares the same peak with the current value. These measures are not interchangeable. Rolling success covers the latest 200 rounds, or all rounds so far if fewer.</p>
+        <p>Regime and stability indicators are threshold-based diagnostics of the current policies. They do not establish lasting equilibrium, semantic compositionality or human-like understanding. Restart with settings clears all learning, results and the replacement event. New random run uses a fresh seed for the active model.</p>
+        <h3>References</h3><div style={styles.referenceLine}>
+            <span style={styles.referencePrefix}>Based on the models in</span>
+            <cite style={styles.referenceText}>
+              <a
+                href={currentModel.referenceUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.referenceLink}
+              >
+                {currentModel.reference}
+              </a>
+            </cite>
+          </div>
+        <p>The receiver variants draw on Barrett, Cochran and Skyrms (2020), <a href="https://www.cambridge.org/core/journals/philosophy-of-science/article/abs/on-the-evolution-of-compositional-language/E65AF2A9D2DB2B8E3C8B4AA0C7273592"><cite>On the Evolution of Compositional Language</cite></a>, and Freeborn (2025), <a href="https://link.springer.com/article/10.1007/s11229-025-05184-3"><cite>Compositional Understanding in Signaling Games</cite></a>. The learning bias, softmax temperature and replacement procedures are choices specific to this application.</p>
+      </details>
     </div>
   );
 }
@@ -832,7 +819,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100%",
     padding: "24px 28px 36px",
     color: "#111111",
-    fontFamily: '"Helvetica Neue", "Segoe UI", sans-serif',
+    fontFamily: 'var(--tool-sans, system-ui, sans-serif)',
     background: "#ffffff",
   },
   header: {
@@ -848,18 +835,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 6,
   },
   title: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: 0,
-    fontFamily:
-      '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif',
     fontSize: 32,
-    fontWeight: 600,
+    fontWeight: 400,
     lineHeight: 1.05,
   },
   modelLine: {
     fontSize: 15,
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    textTransform: "none",
     color: "#374151",
   },
   referenceLine: {
@@ -870,14 +856,14 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 760,
   },
   referencePrefix: {
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
+    fontSize: 18,
+    fontWeight: 400,
+    letterSpacing: "normal",
+    textTransform: "none",
     color: "#6b7280",
   },
   referenceText: {
-    fontSize: 14,
+    fontSize: 18,
     lineHeight: 1.5,
     fontStyle: "normal",
     color: "#374151",
@@ -894,29 +880,22 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "stretch",
     flexWrap: "wrap",
   },
-  roundChip: {
-    display: "grid",
-    gap: 4,
-    padding: "10px 14px",
-    borderRadius: 14,
-    border: "1px solid #d6dce5",
-    background: "#ffffff",
-  },
+  roundChip: { display: "flex", gap: 8, alignItems: "baseline", padding: "8px 0" },
   roundLabel: {
     fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    textTransform: "none",
     color: "#5b6470",
   },
   roundValue: {
     fontSize: 24,
-    fontWeight: 700,
+    fontWeight: 400,
     color: "#111111",
   },
   layout: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1.5fr) minmax(300px, 0.8fr)",
+    gridTemplateColumns: "minmax(0, 1fr) 320px",
     gap: 18,
     alignItems: "start",
   },
@@ -934,15 +913,15 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   card: {
-    borderRadius: 2,
-    padding: 16,
+    padding: "12px 0",
+    borderTop: "1px solid #ccc",
     background: "#ffffff",
-    border: "1px solid #d6dce5",
   },
   cardTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: "0 0 10px",
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 21,
+    fontWeight: 400,
     color: "#111111",
   },
   legend: {
@@ -961,7 +940,7 @@ const styles: Record<string, React.CSSProperties> = {
   legendSwatch: {
     width: 10,
     height: 10,
-    borderRadius: 999,
+    borderRadius: 2,
   },
   debugSection: {
     marginTop: 22,
@@ -976,19 +955,20 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
   },
   debugTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: 0,
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
+    fontSize: 21,
+    fontWeight: 400,
+    letterSpacing: "normal",
+    textTransform: "none",
     color: "#5b6470",
   },
   debugToggle: {
     border: "1px solid #d6dce5",
-    borderRadius: 999,
+    borderRadius: 2,
     padding: "8px 12px",
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 400,
     color: "#111111",
     background: "#ffffff",
     cursor: "pointer",
@@ -1003,30 +983,29 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 14,
   },
   debugCard: {
-    borderRadius: 2,
-    padding: 16,
-    background: "#fafbfc",
-    border: "1px solid #d6dce5",
+    padding: "12px 0",
+    borderTop: "1px solid #ccc",
+    background: "#ffffff",
   },
   greedySummaryCard: {
-    borderRadius: 2,
-    padding: 16,
-    background: "#fafbfc",
-    border: "1px solid #d6dce5",
+    padding: "12px 0",
+    borderTop: "1px solid #ccc",
+    background: "#ffffff",
   },
   debugCardTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: "0 0 12px",
-    fontSize: 15,
-    fontWeight: 700,
+    fontSize: 21,
+    fontWeight: 400,
     color: "#111111",
   },
   debugLabel: {
     display: "grid",
     gap: 8,
     fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    textTransform: "none",
     color: "#5b6470",
   },
   debugInput: {
@@ -1049,7 +1028,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 2,
     padding: "10px 12px",
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 400,
     color: "#111111",
     background: "#ffffff",
     cursor: "pointer",

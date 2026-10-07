@@ -271,24 +271,12 @@ export function SignalingGameView({
   const modelLabel = `${snapshot.config.numStates}x${snapshot.config.numMessages}x${snapshot.config.numActions} model`;
 
   return (
-    <div style={styles.page}>
+    <div className="signalling-tool" style={styles.page}>
       <header style={styles.header}>
         <div style={styles.headerTextBlock}>
           <h1 style={styles.title}>Classic signaling games</h1>
           <div style={styles.modelLine}>{modelLabel}</div>
-          <div style={styles.referenceLine}>
-            <span style={styles.referencePrefix}>Based on the models in</span>
-            <cite style={styles.referenceText}>
-              <a
-                href={SKYRMS_REFERENCE_URL}
-                target="_blank"
-                rel="noreferrer"
-                style={styles.referenceLink}
-              >
-                {SKYRMS_REFERENCE}
-              </a>
-            </cite>
-          </div>
+
         </div>
         <div style={styles.statusGroup}>
           <div style={styles.roundChip}>
@@ -301,6 +289,38 @@ export function SignalingGameView({
       </header>
 
       <div className="signal-layout" style={styles.layout}>
+        <div className="signal-right" style={styles.rightColumn}>
+
+          <ControlsPanel
+            hasPendingChanges={selectedStates !== snapshot.config.numStates || selectedMessages !== snapshot.config.numMessages || selectedActions !== snapshot.config.numActions || seedInput !== snapshot.config.seed.toString()}
+            numStates={selectedStates}
+            numMessages={selectedMessages}
+            numActions={selectedActions}
+            errorMessage={errorMessage}
+            isPlaying={playback.isPlaying}
+            isBusy={animationsEnabled && animation.phase !== 'idle'}
+            speed={speed}
+            animationsEnabled={animationsEnabled}
+            onPlayPause={handlePlayPause}
+            onStepOne={handleStepOne}
+            onReset={handleReset}
+            onSpeedChange={(nextSpeed) => {
+              pauseAndClear();
+              setSpeed(nextSpeed);
+            }}
+            onStatesChange={(value) => {
+              setSelectedStates(value);
+              setSelectedActions((currentValue) => Math.max(currentValue, value));
+            }}
+            onMessagesChange={(value) => setSelectedMessages(value)}
+            onActionsChange={(value) => setSelectedActions(value)}
+            onApplyConfig={applyConfiguration}
+            onAnimationsChange={(value) => {
+              pauseAndClear();
+              setAnimationsEnabled(value);
+            }}
+          />
+        </div>
         <div className="signal-left" style={styles.leftColumn}>
           <SignalDiagram
             config={snapshot.config}
@@ -362,46 +382,16 @@ export function SignalingGameView({
               <Legend entries={[['Mutual information', '#374151']]} />
             </section>
           </div>
-        </div>
-
-        <div className="signal-right" style={styles.rightColumn}>
           <MetricsPanel metrics={snapshot.metrics} />
-          <ControlsPanel
-            numStates={selectedStates}
-            numMessages={selectedMessages}
-            numActions={selectedActions}
-            errorMessage={errorMessage}
-            isPlaying={playback.isPlaying}
-            isBusy={animationsEnabled && animation.phase !== 'idle'}
-            speed={speed}
-            animationsEnabled={animationsEnabled}
-            onPlayPause={handlePlayPause}
-            onStepOne={handleStepOne}
-            onReset={handleReset}
-            onSpeedChange={(nextSpeed) => {
-              pauseAndClear();
-              setSpeed(nextSpeed);
-            }}
-            onStatesChange={(value) => {
-              setSelectedStates(value);
-              setSelectedActions((currentValue) => Math.max(currentValue, value));
-            }}
-            onMessagesChange={(value) => setSelectedMessages(value)}
-            onActionsChange={(value) => setSelectedActions(value)}
-            onApplyConfig={applyConfiguration}
-            onAnimationsChange={(value) => {
-              pauseAndClear();
-              setAnimationsEnabled(value);
-            }}
-          />
         </div>
       </div>
 
       <section style={styles.debugSection}>
         <div style={styles.debugHeader}>
-          <h2 style={styles.debugTitle}>Debug</h2>
+          <h2 style={styles.debugTitle}>Advanced controls</h2>
           <button
             type="button"
+            aria-expanded={debugMode}
             onClick={() => setDebugMode((currentValue) => !currentValue)}
             style={styles.debugToggle}
           >
@@ -413,7 +403,7 @@ export function SignalingGameView({
           <div style={styles.debugContent}>
             <div style={styles.debugGrid}>
               <section style={styles.debugCard}>
-                <h3 style={styles.debugCardTitle}>Debug Controls</h3>
+                <h3 style={styles.debugCardTitle}>Seed and display</h3>
                 <label style={styles.debugLabel}>
                   Seed
                   <input
@@ -433,7 +423,7 @@ export function SignalingGameView({
                   Show exact probability labels on edges
                 </label>
                 <button type="button" onClick={applyConfiguration} style={styles.debugButton}>
-                  Apply debug settings
+                  Apply all settings and restart
                 </button>
               </section>
 
@@ -472,6 +462,24 @@ export function SignalingGameView({
           </div>
         ) : null}
       </section>
+      <details className="tool-methodology"><summary>Model and methodology</summary>
+        <h3>Learning rule</h3><p>Each round draws a state uniformly. A sender observes it and samples a message; a receiver sees only the message and samples an action. A round succeeds when the action matches the state. Successful choices each receive one additional unit of reinforcement; unsuccessful rounds leave the weights unchanged. Choices are sampled in proportion to their weights, which initially equal one.</p>
+        <h3>Reading the results</h3><p>Cumulative success covers all completed rounds. Rolling success covers the latest 200 rounds, or all rounds so far if fewer. State-to-message information, measured in bits, describes the dependence between states and messages under the current sender policy. It does not itself measure whether the receiver acts correctly. The regime and stability indicators use thresholds on the current policies; they do not prove convergence or lasting equilibrium.</p>
+        <h3>Assumptions and limitations</h3><p>This finite reinforcement model illustrates coordination under a particular learning rule, rather than the full complexity of human language. Different seeds and model sizes can give different outcomes. Restart with settings clears all learning and results, using the displayed seed; New random run starts the active model with a fresh seed. The seed and learned weights are available under Advanced controls.</p>
+        <h3>Reference</h3><div style={styles.referenceLine}>
+            <span style={styles.referencePrefix}>Based on the models in</span>
+            <cite style={styles.referenceText}>
+              <a
+                href={SKYRMS_REFERENCE_URL}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.referenceLink}
+              >
+                {SKYRMS_REFERENCE}
+              </a>
+            </cite>
+          </div>
+      </details>
     </div>
   );
 }
@@ -502,7 +510,7 @@ function DebugDiagnostics({
           <strong>{metrics.totalSuccesses.toLocaleString()}</strong>
         </div>
         <div style={styles.debugMetricRow}>
-          <span>Stable signalling system</span>
+          <span>Approximate stable signalling</span>
           <strong>{metrics.stableSignalingSystem ? 'yes' : 'no'}</strong>
         </div>
       </div>
@@ -546,7 +554,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '100%',
     padding: '24px 28px 36px',
     color: '#111111',
-    fontFamily: '"Helvetica Neue", "Segoe UI", sans-serif',
+    fontFamily: 'var(--tool-sans, system-ui, sans-serif)',
     background: '#ffffff',
   },
   header: {
@@ -562,17 +570,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 6,
   },
   title: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: 0,
-    fontFamily: 'var(--tool-serif, Georgia, serif)',
     fontSize: 32,
-    fontWeight: 600,
+    fontWeight: 400,
     lineHeight: 1.05,
   },
   modelLine: {
     fontSize: 15,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#374151',
   },
   referenceLine: {
@@ -583,14 +591,14 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 760,
   },
   referencePrefix: {
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    fontSize: 18,
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#6b7280',
   },
   referenceText: {
-    fontSize: 14,
+    fontSize: 18,
     lineHeight: 1.5,
     fontStyle: 'normal',
     color: '#374151',
@@ -610,29 +618,22 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'stretch',
     flexWrap: 'wrap',
   },
-  roundChip: {
-    display: 'grid',
-    gap: 4,
-    padding: '10px 14px',
-    borderRadius: 14,
-    border: '1px solid #d6dce5',
-    background: '#ffffff',
-  },
+  roundChip: { display: "flex", gap: 8, alignItems: "baseline", padding: "8px 0" },
   roundLabel: {
     fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#5b6470',
   },
   roundValue: {
     fontSize: 24,
-    fontWeight: 700,
+    fontWeight: 400,
     color: '#111111',
   },
   layout: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1.5fr) minmax(300px, 0.8fr)',
+    gridTemplateColumns: 'minmax(0, 1fr) 320px',
     gap: 18,
     alignItems: 'start',
   },
@@ -650,15 +651,15 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   card: {
-    borderRadius: 2,
-    padding: 16,
-    background: '#ffffff',
-    border: '1px solid #d6dce5',
+    padding: "12px 0",
+    borderTop: "1px solid #ccc",
+    background: "#ffffff",
   },
   cardTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: '0 0 10px',
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 21,
+    fontWeight: 400,
     color: '#111111',
   },
   legend: {
@@ -677,7 +678,7 @@ const styles: Record<string, React.CSSProperties> = {
   legendSwatch: {
     width: 10,
     height: 10,
-    borderRadius: 999,
+    borderRadius: 2,
   },
   debugSection: {
     marginTop: 22,
@@ -692,19 +693,20 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
   },
   debugTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: 0,
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    fontSize: 21,
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#5b6470',
   },
   debugToggle: {
     border: '1px solid #d6dce5',
-    borderRadius: 999,
+    borderRadius: 2,
     padding: '8px 12px',
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 400,
     color: '#111111',
     background: '#ffffff',
     cursor: 'pointer',
@@ -719,24 +721,24 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 14,
   },
   debugCard: {
-    borderRadius: 2,
-    padding: 16,
-    background: '#fafbfc',
-    border: '1px solid #d6dce5',
+    padding: "12px 0",
+    borderTop: "1px solid #ccc",
+    background: "#ffffff",
   },
   debugCardTitle: {
+    fontFamily: "var(--tool-serif, Georgia, serif)",
     margin: '0 0 12px',
-    fontSize: 15,
-    fontWeight: 700,
+    fontSize: 21,
+    fontWeight: 400,
     color: '#111111',
   },
   debugLabel: {
     display: 'grid',
     gap: 8,
     fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
+    fontWeight: 400,
+    letterSpacing: 'normal',
+    textTransform: 'none',
     color: '#5b6470',
   },
   debugInput: {
@@ -761,7 +763,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 2,
     padding: '10px 12px',
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 400,
     color: '#111111',
     background: '#ffffff',
     cursor: 'pointer',

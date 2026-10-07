@@ -36,7 +36,7 @@ describe('SignalingGameView', () => {
 
     expect(screen.getByTestId('success-chart').getAttribute('data-point-count')).toBe('2');
 
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('New random run'));
 
     await waitFor(() => {
       expect(getRoundValue()).toBe(0);
@@ -51,7 +51,7 @@ describe('SignalingGameView', () => {
     const seedInput = screen.getByTestId('seed-input') as HTMLInputElement;
     expect(seedInput.value).toBe('42');
 
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('New random run'));
 
     await waitFor(() => {
       expect((screen.getByTestId('seed-input') as HTMLInputElement).value).toBe('2147483648');
@@ -91,7 +91,7 @@ describe('SignalingGameView', () => {
     render(React.createElement(SignalingGameView));
 
     fireEvent.click(screen.getByText('Step'));
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('New random run'));
 
     act(() => {
       vi.advanceTimersByTime(1200);
