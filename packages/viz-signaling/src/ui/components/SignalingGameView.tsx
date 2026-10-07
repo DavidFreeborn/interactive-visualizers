@@ -1,3 +1,4 @@
+import '../responsive.css';
 import React, { startTransition, useEffect, useRef, useState } from 'react';
 import type { SignalingGameConfigInput, SimulationHistoryPoint, SignalingMetrics } from '../../model/types';
 import { createIdentityMapping, createUniformPrior } from '../../model/validation';
@@ -82,7 +83,7 @@ export function SignalingGameView({
   const [seedInput, setSeedInput] = useState(snapshot.config.seed.toString());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [speed, setSpeed] = useState<PlaybackSpeed>('normal');
-  const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [animationsEnabled, setAnimationsEnabled] = useState(() => !(typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
   const [debugMode, setDebugMode] = useState(false);
   const [showProbabilityLabels, setShowProbabilityLabels] = useState(false);
   const [animation, setAnimation] = useState<RoundAnimationState>(IDLE_ANIMATION);
@@ -299,8 +300,8 @@ export function SignalingGameView({
         </div>
       </header>
 
-      <div style={styles.layout}>
-        <div style={styles.leftColumn}>
+      <div className="signal-layout" style={styles.layout}>
+        <div className="signal-left" style={styles.leftColumn}>
           <SignalDiagram
             config={snapshot.config}
             policies={snapshot.policies}
@@ -308,7 +309,7 @@ export function SignalingGameView({
             showProbabilityLabels={debugMode && showProbabilityLabels}
           />
 
-          <div style={styles.chartGrid}>
+          <div className="signal-charts" style={styles.chartGrid}>
             <section style={styles.card}>
               <h3 style={styles.cardTitle}>Success</h3>
               <LineChart
@@ -363,7 +364,7 @@ export function SignalingGameView({
           </div>
         </div>
 
-        <div style={styles.rightColumn}>
+        <div className="signal-right" style={styles.rightColumn}>
           <MetricsPanel metrics={snapshot.metrics} />
           <ControlsPanel
             numStates={selectedStates}
@@ -562,8 +563,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: {
     margin: 0,
-    fontFamily: '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif',
-    fontSize: 38,
+    fontFamily: 'var(--tool-serif, Georgia, serif)',
+    fontSize: 32,
     fontWeight: 600,
     lineHeight: 1.05,
   },
@@ -582,7 +583,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 760,
   },
   referencePrefix: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: 700,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -601,7 +602,7 @@ const styles: Record<string, React.CSSProperties> = {
     textUnderlineOffset: '0.16em',
   },
   referenceWork: {
-    fontFamily: '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif',
+    fontFamily: 'var(--tool-serif, Georgia, serif)',
   },
   statusGroup: {
     display: 'flex',
@@ -618,7 +619,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#ffffff',
   },
   roundLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: 700,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -649,7 +650,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   card: {
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 16,
     background: '#ffffff',
     border: '1px solid #d6dce5',
@@ -665,7 +666,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     flexWrap: 'wrap',
     marginTop: 8,
-    fontSize: 12,
+    fontSize: 14,
     color: '#374151',
   },
   legendEntry: {
@@ -702,7 +703,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #d6dce5',
     borderRadius: 999,
     padding: '8px 12px',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#111111',
     background: '#ffffff',
@@ -718,7 +719,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 14,
   },
   debugCard: {
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 16,
     background: '#fafbfc',
     border: '1px solid #d6dce5',
@@ -732,14 +733,14 @@ const styles: Record<string, React.CSSProperties> = {
   debugLabel: {
     display: 'grid',
     gap: 8,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     color: '#5b6470',
   },
   debugInput: {
-    borderRadius: 12,
+    borderRadius: 2,
     border: '1px solid #d6dce5',
     padding: '10px 12px',
     fontSize: 14,
@@ -757,7 +758,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   debugButton: {
     border: '1px solid #d6dce5',
-    borderRadius: 12,
+    borderRadius: 2,
     padding: '10px 12px',
     fontSize: 14,
     fontWeight: 700,
@@ -788,10 +789,10 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     alignItems: 'center',
     padding: '10px 12px',
-    borderRadius: 12,
+    borderRadius: 2,
     background: '#ffffff',
     border: '1px solid #e5e7eb',
-    fontSize: 12,
+    fontSize: 14,
     color: '#111111',
   },
   greedyCode: {

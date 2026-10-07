@@ -1,0 +1,5 @@
+.signal-layout>*,.signal-charts>*{min-width:0}.signal-charts{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))!important}.signal-left,.signal-right{align-content:start;min-width:0}.signal-layout svg{max-width:100%}.signal-layout section{min-width:0}@media(max-width:900px){.signal-layout{display:flex!important;flex-direction:column;align-items:stretch!important}.signal-left,.signal-right{width:100%}.signal-left{order:1}.signal-right{order:2}.signal-charts{display:flex!important;flex-direction:column}.signal-charts>section{height:auto;position:static}}
+
+.signal-diagram-scroll{max-width:100%;overflow:auto}.signal-diagram-scroll>svg{display:block;min-width:920px}.signal-diagram-scroll:focus-visible{outline:2px solid #222;outline-offset:3px}
+
+@media(max-width:900px){.signal-diagram-scroll::before{content:"Scroll the diagram horizontally to read all states and signals.";display:block;font:14px/1.5 system-ui;margin-bottom:8px;position:sticky;left:0;width:100%}}

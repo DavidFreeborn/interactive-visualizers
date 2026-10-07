@@ -76,13 +76,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   card: {
-    borderRadius: 18,
+    borderRadius: 2,
     padding: '16px 18px',
     background: '#ffffff',
     border: '1px solid #d6dce5',
   },
   regimeCard: {
-    borderRadius: 18,
+    borderRadius: 2,
     padding: '16px 18px',
     background: '#ffffff',
     borderTop: '1px solid #d6dce5',
@@ -90,7 +90,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #d6dce5',
   },
   label: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: 700,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -107,11 +107,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 20,
     fontWeight: 700,
     color: '#111111',
-    fontFamily: '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif',
+    fontFamily: 'var(--tool-serif, Georgia, serif)',
   },
   regimeDetail: {
     margin: '8px 0 0',
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 1.5,
     color: '#4b5563',
   },

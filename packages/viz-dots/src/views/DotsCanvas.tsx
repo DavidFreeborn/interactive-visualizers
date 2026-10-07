@@ -52,6 +52,7 @@ const TYPE_COLORS = [
 ];
 
 interface DotsCanvasProps {
+  interactionMode?: "attract" | "repel";
   state: DotsState;
   options: RenderOptions;
   width: number;
@@ -61,6 +62,7 @@ interface DotsCanvasProps {
 }
 
 export const DotsCanvas: React.FC<DotsCanvasProps> = ({
+  interactionMode = "attract",
   state,
   options,
   width,
@@ -72,8 +74,8 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   const interactionRef = useRef<Interaction>({
     type: 'none',
-    x: 0,
-    y: 0,
+    x: width / 2,
+    y: height / 2,
     strength: 0.5,
     active: false,
   });
@@ -255,18 +257,18 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
 
   // Interaction handlers - transform screen to world coords for physics
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
+      const screenX = (e.clientX - rect.left) * width / rect.width;
+      const screenY = (e.clientY - rect.top) * height / rect.height;
 
       // Transform to world coordinates for physics
       const world = screenToWorld(screenX, screenY, cameraRef.current, width, height);
 
       interactionRef.current = {
-        type: e.button === 0 ? 'attract' : 'repel',
+        type: e.button === 2 ? 'repel' : interactionMode,
         x: world.x,
         y: world.y,
         strength: 0.5,
@@ -274,18 +276,18 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
       };
       onInteraction(interactionRef.current);
     },
-    [onInteraction, width, height]
+    [onInteraction, width, height, interactionMode]
   );
 
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!interactionRef.current.active) return;
 
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
+      const screenX = (e.clientX - rect.left) * width / rect.width;
+      const screenY = (e.clientY - rect.top) * height / rect.height;
 
       // Transform to world coordinates for physics
       const world = screenToWorld(screenX, screenY, cameraRef.current, width, height);
@@ -297,7 +299,7 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
       };
       onInteraction(interactionRef.current);
     },
-    [onInteraction, width, height]
+    [onInteraction, width, height, interactionMode]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -311,16 +313,30 @@ export const DotsCanvas: React.FC<DotsCanvasProps> = ({
   return (
     <canvas
       ref={canvasRef}
+      role="application"
+      tabIndex={0}
+      onKeyDown={e => {
+        const point = interactionRef.current;
+        const shifts: Record<string, [number, number]> = {ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]};
+        if (shifts[e.key]) { e.preventDefault(); const [dx,dy]=shifts[e.key]; interactionRef.current={...point,x:point.x+dx/zoom,y:point.y+dy/zoom}; }
+        else if(e.key === "Enter") {e.preventDefault(); interactionRef.current={...point,type:interactionMode,active:!point.active};}
+        else if(e.key === "Escape") {interactionRef.current={...point,active:false};}
+        else return;
+        onInteraction(interactionRef.current);
+      }}
+      aria-label="Swarm simulation; particles follow the selected model. Use arrows to position the force, Enter to toggle it and Escape to release."
       style={{
         display: 'block',
         cursor: 'crosshair',
-        border: '1px solid #ddd',
+        touchAction: 'none',
+        outline: '1px solid #ddd',
         borderRadius: '4px',
       }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onPointerDown={handleMouseDown}
+      onPointerMove={handleMouseMove}
+      onPointerUp={handleMouseUp}
+      onPointerCancel={handleMouseUp}
+      onPointerLeave={handleMouseUp}
       onContextMenu={(e) => e.preventDefault()}
     />
   );

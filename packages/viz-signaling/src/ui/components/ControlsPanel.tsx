@@ -159,7 +159,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 14,
   },
   card: {
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 18,
     background: '#ffffff',
     border: '1px solid #d6dce5',
@@ -181,7 +181,7 @@ const styles: Record<string, React.CSSProperties> = {
   modelBadge: {
     borderRadius: 999,
     padding: '6px 10px',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#111111',
     background: '#f3f5f8',
@@ -196,14 +196,14 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     display: 'grid',
     gap: 8,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#4b5563',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   },
   select: {
-    borderRadius: 12,
+    borderRadius: 2,
     border: '1px solid #d6dce5',
     padding: '10px 12px',
     fontSize: 14,
@@ -217,7 +217,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   primaryButton: {
     border: '1px solid #111111',
-    borderRadius: 12,
+    borderRadius: 2,
     padding: '11px 14px',
     fontSize: 14,
     fontWeight: 700,
@@ -227,7 +227,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   secondaryButton: {
     border: '1px solid #d6dce5',
-    borderRadius: 12,
+    borderRadius: 2,
     padding: '11px 14px',
     fontSize: 14,
     fontWeight: 700,
@@ -246,7 +246,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #d6dce5',
     borderRadius: 999,
     padding: '8px 10px',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#374151',
     background: '#ffffff',
@@ -266,9 +266,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: 2,
     padding: '10px 12px',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 700,
     color: '#991b1b',
     background: '#fef2f2',

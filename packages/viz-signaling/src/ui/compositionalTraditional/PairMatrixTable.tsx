@@ -70,7 +70,7 @@ export function PairMatrixTable({
 const styles: Record<string, React.CSSProperties> = {
   details: {
     border: '1px solid rgba(148, 163, 184, 0.35)',
-    borderRadius: 18,
+    borderRadius: 2,
     background: 'rgba(255, 255, 255, 0.76)',
     overflow: 'hidden',
   },
@@ -94,7 +94,7 @@ const styles: Record<string, React.CSSProperties> = {
   headerCell: {
     padding: '10px 12px',
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#334155',
     borderBottom: '1px solid rgba(148, 163, 184, 0.35)',
@@ -102,7 +102,7 @@ const styles: Record<string, React.CSSProperties> = {
   rowHeader: {
     padding: '10px 12px',
     textAlign: 'left',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 700,
     color: '#334155',
     borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
@@ -111,7 +111,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 12px',
     textAlign: 'center',
     fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
-    fontSize: 12,
+    fontSize: 14,
     color: '#0f172a',
     borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
   },

@@ -303,7 +303,7 @@ export function CompositionalTraditionalDiagram({
           {`${hoveredEdge.description} = ${formatProbability(hoveredEdge.probability)}`}
         </div>
       ) : null}
-      <svg
+      <div className="signal-diagram-scroll" tabIndex={0} role="region" aria-label="Signalling diagram; scroll horizontally to read all labels"><svg
         width="100%"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
@@ -857,7 +857,7 @@ export function CompositionalTraditionalDiagram({
             </text>
           </g>
         ) : null}
-      </svg>
+      </svg></div>
     </div>
   );
 }

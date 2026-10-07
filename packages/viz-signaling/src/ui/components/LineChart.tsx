@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export interface LineSeries {
   id: string;
@@ -40,9 +40,20 @@ export function LineChart({
   dataTestId,
   verticalMarkers = [],
 }: LineChartProps): React.ReactElement {
-  const width = 420;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [width, setWidth] = useState(420);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(entries => {
+      const next = entries[0]?.contentRect.width;
+      if (next && next > 0) setWidth(Math.max(160, next));
+    });
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, []);
   const height = 180;
-  const padding = { top: 18, right: 20, bottom: 24, left: 42 };
+  const padding = { top: 18, right: 20, bottom: 24, left: 52 };
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const visibleRounds = rounds.length > 0 ? rounds : [0];
@@ -59,6 +70,7 @@ export function LineChart({
 
   return (
     <svg
+      ref={svgRef}
       width={width}
       height={height}
       role="img"
@@ -83,7 +95,7 @@ export function LineChart({
             y={scaleY(tickValue)}
             textAnchor="end"
             dominantBaseline="middle"
-            fontSize={10}
+            fontSize={14}
             fill="#6b7280"
           >
             {formatTick(tickValue)}
@@ -109,9 +121,10 @@ export function LineChart({
                 data-testid={`line-chart-marker-${marker.id}`}
               />
               <text
-                x={x + 6}
+                x={x > width / 2 ? x - 6 : x + 6}
+                textAnchor={x > width / 2 ? "end" : "start"}
                 y={padding.top + 12}
-                fontSize={10}
+                fontSize={14}
                 fontWeight={700}
                 fill={marker.color ?? "#374151"}
               >
@@ -138,19 +151,19 @@ export function LineChart({
 
         return (
           <g key={entry.id}>
-            <path d={path} fill="none" stroke={entry.color} strokeWidth={2.5} strokeLinecap="round" />
+            <path strokeDasharray={series.indexOf(entry) % 2 ? '6 4' : undefined} d={path} fill="none" stroke={entry.color} strokeWidth={2.5} strokeLinecap="round" />
             <circle cx={scaleX(lastRound)} cy={scaleY(lastValue)} r={3.5} fill={entry.color} />
           </g>
         );
       })}
-      <text x={padding.left} y={height - 6} fontSize={10} fill="#6b7280">
+      <text x={padding.left} y={height - 6} fontSize={14} fill="#6b7280">
         {xMin.toLocaleString()}
       </text>
       <text
         x={padding.left + innerWidth}
         y={height - 6}
         textAnchor="end"
-        fontSize={10}
+        fontSize={14}
         fill="#6b7280"
       >
         {xMax.toLocaleString()}

@@ -203,7 +203,7 @@ export function SignalDiagram({
         </div>
       ) : null}
 
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Signaling game diagram">
+      <div className="signal-diagram-scroll" tabIndex={0} role="region" aria-label="Signalling diagram; scroll horizontally to read all labels"><svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Signaling game diagram">
         <rect x={0} y={0} width={width} height={height} rx={24} fill="#ffffff" />
 
         {[stateX, messageX, actionX].map((x) => (
@@ -432,7 +432,7 @@ export function SignalDiagram({
             </text>
           </g>
         ) : null}
-      </svg>
+      </svg></div>
     </div>
   );
 }

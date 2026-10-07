@@ -1,3 +1,4 @@
+import './responsive.css';
 import React, { useState, useRef, useCallback } from 'react';
 import { usePlayback } from '@viz/core-ui';
 import type { DotsConfig, RenderOptions, Interaction, DotsMetrics, BehaviorType } from '../model/types';
@@ -18,18 +19,18 @@ interface DotsViewProps {
 const styles = {
   container:{display:'flex',flexDirection:'column' as const,gap:16,fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'},
   header:{display:'flex',alignItems:'baseline',gap:16},
-  title:{fontSize:24,fontWeight:700,margin:0,color:'#1a1a1a'},
+  title:{fontSize:32,fontWeight:700,margin:0,color:'#1a1a1a'},
   main:{display:'flex',gap:16},
   canvasSection:{flex:1,minWidth:0},
   controlsSection:{flex:'0 0 280px'},
-  metricsBar:{display:'flex',gap:20,padding:'8px 12px',background:'#f8f9fa',borderRadius:4,fontSize:12,marginTop:8,flexWrap:'wrap' as const},
+  metricsBar:{display:'flex',gap:20,padding:'8px 12px',background:'#f8f9fa',borderRadius:4,fontSize:14,marginTop:8,flexWrap:'wrap' as const},
   metric:{display:'flex',alignItems:'center',gap:6},
-  metricLabel:{color:'#888'}, metricValue:{fontWeight:600,fontFamily:'monospace',color:'#333'},
-  interactionHint:{fontSize:12,color:'#999',marginLeft:'auto'},
+  metricLabel:{color:'#666'}, metricValue:{fontWeight:600,fontFamily:'monospace',color:'#333'},
+  interactionHint:{fontSize:14,color:'#666',marginLeft:'auto'},
   infoPanel:{padding:'14px 18px',background:'#f8f9fa',borderRadius:4,marginTop:12},
-  infoPanelTitle:{fontSize:13,fontWeight:600,marginBottom:8,color:'#1a1a1a',letterSpacing:'0.2px'},
-  infoPanelText:{margin:0,fontSize:13,color:'#444',lineHeight:1.65,whiteSpace:'pre-wrap' as const},
-  credit:{fontSize:12,color:'#888',fontStyle:'italic' as const,marginTop:8},
+  infoPanelTitle:{fontSize:14,fontWeight:600,marginBottom:8,color:'#1a1a1a',letterSpacing:'0.2px'},
+  infoPanelText:{margin:0,fontSize:14,color:'#444',lineHeight:1.65,whiteSpace:'pre-wrap' as const},
+  credit:{fontSize:14,color:'#666',fontStyle:'italic' as const,marginTop:8},
 };
 
 export const DotsView: React.FC<DotsViewProps> = ({
@@ -42,6 +43,7 @@ export const DotsView: React.FC<DotsViewProps> = ({
     ...initialRenderOptions,
   }));
   const [zoom,setZoom]=useState(1);
+  const [interactionMode,setInteractionMode]=useState<'attract'|'repel'>('attract');
   const simRef=useRef(new DotsSimulation(config,renderOptions));
   const [,forceRender]=useState(0);
   const triggerRender=useCallback(()=>forceRender(c=>c+1),[]);
@@ -120,18 +122,19 @@ export const DotsView: React.FC<DotsViewProps> = ({
 
   return <div style={styles.container}>
     <header style={styles.header}><h1 style={styles.title}>{CONTENT.title}</h1></header>
-    <div style={styles.main}>
+    <div className="swarm-layout" style={styles.main}>
       <div style={styles.canvasSection}>
-        <DotsCanvas state={state} options={renderOptions} width={width} height={height} zoom={zoom} onInteraction={handleInteraction}/>
+        <label style={{fontSize:14,display:'block',marginBottom:8}}>Pointer interaction <select value={interactionMode} onChange={e=>setInteractionMode(e.target.value as 'attract'|'repel')}><option value="attract">Attract</option><option value="repel">Repel</option></select></label>
+        <DotsCanvas interactionMode={interactionMode} state={state} options={renderOptions} width={width} height={height} zoom={zoom} onInteraction={handleInteraction}/>
         <div style={styles.metricsBar}>
           <Metric label="Frame" value={`${metrics.frame}`}/>
           <Metric label="Speed" value={metrics.avgSpeed.toFixed(2)}/>
-          {metrics.orderParameter!==undefined&&<Metric label="Order" value={metrics.orderParameter.toFixed(2)}/>} 
-          {metrics.phaseSynchronization!==undefined&&<Metric label="Sync Z" value={metrics.phaseSynchronization.toFixed(2)}/>} 
-          {metrics.spacePhaseOrder!==undefined&&<Metric label="Space-phase S" value={metrics.spacePhaseOrder.toFixed(2)}/>} 
-          <span style={styles.interactionHint}>Click to attract · Right-click to repel</span>
+          {metrics.orderParameter!==undefined&&<Metric label="Order" value={metrics.orderParameter.toFixed(2)}/>}
+          {metrics.phaseSynchronization!==undefined&&<Metric label="Sync Z" value={metrics.phaseSynchronization.toFixed(2)}/>}
+          {metrics.spacePhaseOrder!==undefined&&<Metric label="Space-phase S" value={metrics.spacePhaseOrder.toFixed(2)}/>}
+          <span style={styles.interactionHint}>Tap or drag to interact · Arrow keys move the focus · Enter toggles force · Escape releases</span>
         </div>
-        {info&&<div style={styles.infoPanel}><div style={styles.infoPanelTitle}>{info.name}</div><p style={styles.infoPanelText}>{info.description}</p>{info.credit&&<p style={styles.credit}>{info.credit}</p>}</div>}
+        {info&&<details style={styles.infoPanel}><summary style={styles.infoPanelTitle}>Model and methodology: {info.name}</summary><p style={styles.infoPanelText}>{info.description}</p><p style={styles.infoPanelText}>These models illustrate collective behaviour from local interaction rules. They are not fitted predictions for a particular animal population or material.</p>{info.credit&&<p style={styles.credit}>{info.credit}</p>}</details>}
       </div>
       <div style={styles.controlsSection}>
         <DotsControls config={config} renderOptions={renderOptions} presets={PRESETS}

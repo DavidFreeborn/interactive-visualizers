@@ -1,0 +1,1 @@
+.swarm-layout{display:grid!important;grid-template-columns:minmax(0,1fr) 280px}.swarm-layout>*{min-width:0}.swarm-layout canvas{max-width:100%;height:auto!important}@media(max-width:900px){.swarm-layout{grid-template-columns:minmax(0,1fr)}.swarm-layout>div{width:100%}}
