@@ -64,13 +64,13 @@ const VISUALIZERS: VisualizerInfo[] = [
     key: 'classic-signaling',
     name: 'Classic signaling games',
     description: 'Ordinary Lewis-Skyrms sender-receiver signaling game',
-    status: 'Phase 1',
+    status: 'Standard toy model',
   },
   {
     key: 'compositional-signaling',
     name: 'Compositional signaling games',
     description: 'Traditional, Minimalist, and Generalist compositional signaling games',
-    status: 'Phase 2',
+    status: 'Standard toy model',
   },
   {
     key: 'english-town-generator',
@@ -105,6 +105,10 @@ const VISUALIZERS: VisualizerInfo[] = [
 ];
 
 export const App: React.FC = () => {
+  const signallingCollection = typeof document !== 'undefined' && document.getElementById('root')?.dataset.collection === 'signalling';
+  const visibleVisualizers = signallingCollection
+    ? VISUALIZERS.filter(viz => viz.key === 'classic-signaling' || viz.key === 'compositional-signaling')
+    : VISUALIZERS;
   const [activeViz, setActiveViz] = useState<VisualizerKey | null>(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -140,14 +144,14 @@ export const App: React.FC = () => {
     return (
       <div style={styles.container}>
         <header style={styles.header}>
-          <h1 style={styles.title}>Interactive Visualizers</h1>
+          <h1 style={styles.title}>{signallingCollection ? 'Signalling Games Visualisers' : 'Interactive Visualisations'}</h1>
           <p style={styles.subtitle}>
-            Research-grade scientific visualizers for teaching and exploration
+            {signallingCollection ? 'Explore how agents learn shared signals and develop compositional communication.' : 'Scientific models for teaching and exploration.'}
           </p>
         </header>
 
         <div style={styles.grid}>
-          {VISUALIZERS.map((viz) => (
+          {visibleVisualizers.map((viz) => (
             <button
               key={viz.key}
               onClick={() => navigateToVisualizer(viz.key)}
@@ -161,7 +165,7 @@ export const App: React.FC = () => {
         </div>
 
         <footer style={styles.footer}>
-          <p>7 visualizers implemented. Select one above to begin.</p>
+          <p>Select a model to explore its assumptions, controls and results.</p>
         </footer>
       </div>
     );
@@ -171,7 +175,7 @@ export const App: React.FC = () => {
     <div style={styles.vizContainer}>
       <nav style={styles.nav}>
         <button onClick={() => navigateToVisualizer(null)} style={styles.backButton}>
-          &larr; Back to Index
+          &larr; {signallingCollection ? 'Signalling models' : 'Visualisation index'}
         </button>
         <span style={styles.navTitle}>
           {VISUALIZERS.find((v) => v.key === activeViz)?.name}
@@ -198,7 +202,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '40px 20px',
   },
   header: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: '40px',
   },
   title: {
@@ -213,14 +217,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
     gap: '20px',
     marginBottom: '40px',
   },
   card: {
     background: '#fff',
     border: '1px solid #e0e0e0',
-    borderRadius: '8px',
+    borderRadius: '2px',
     padding: '24px',
     textAlign: 'left',
     cursor: 'pointer',
@@ -240,12 +244,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   badge: {
     display: 'inline-block',
-    fontSize: '11px',
+    fontSize: '14px',
     fontWeight: 500,
-    color: '#1976d2',
-    background: '#e3f2fd',
-    padding: '4px 8px',
-    borderRadius: '4px',
+    color: '#555',
   },
   footer: {
     textAlign: 'center',
